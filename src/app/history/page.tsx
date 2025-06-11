@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { LucideIcon } from 'lucide-react';
 import { ScrollText, Landmark, CalendarDays, ShieldAlert } from 'lucide-react';
 
+const AwardIcon = ({className}: {className?: string}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>;
+
 interface HistoryEvent {
   year: string;
   title: string;
@@ -10,37 +12,35 @@ interface HistoryEvent {
   icon: LucideIcon;
 }
 
-const Award = ({className}: {className?: string}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>;
-
 const historyEvents: HistoryEvent[] = [
   {
     year: "1995",
-    title: "Fundação da Força Tática",
-    description: "Estabelecimento da Força Tática de Morumbi com o objetivo de combater o crime organizado e prover segurança especializada à população.",
+    title: "Fundação da Força Tática de Morumbi",
+    description: "A Força Tática de Morumbi foi estabelecida, originária da cidade Grande Metrópole, onde seus membros atuavam como parte do 27º Batalhão de Polícia Militar (BPM). Trouxeram sua experiência e dedicação para combater o crime organizado e prover segurança especializada à população de Morumbi.",
     icon: Landmark,
   },
   {
     year: "2002",
     title: "Primeira Grande Operação",
-    description: "Realização da primeira operação de grande escala, resultando na desarticulação de uma importante quadrilha local e no aumento da confiança da comunidade.",
+    description: "Realização da primeira operação de grande escala em Morumbi, resultando na desarticulação de uma importante quadrilha local e no aumento da confiança da comunidade na recém-formada força.",
     icon: ShieldAlert,
   },
   {
     year: "2010",
     title: "Modernização e Treinamento",
-    description: "Investimento em novos equipamentos, tecnologias e programas de treinamento avançado para os oficiais, elevando o padrão de atuação da força.",
+    description: "Investimento em novos equipamentos, tecnologias e programas de treinamento avançado para os oficiais, elevando o padrão de atuação da força e adaptando-se aos novos desafios de segurança.",
     icon: CalendarDays,
   },
   {
     year: "2018",
     title: "Reconhecimento Estadual",
-    description: "A Força Tática de Morumbi recebe reconhecimento estadual por suas contribuições significativas para a segurança pública e redução da criminalidade.",
-    icon: Award,
+    description: "A Força Tática de Morumbi recebe reconhecimento estadual por suas contribuições significativas para a segurança pública e notável redução da criminalidade na região.",
+    icon: AwardIcon,
   },
   {
     year: "Presente",
     title: "Compromisso Contínuo",
-    description: "Continuamos dedicados à nossa missão, adaptando-nos aos novos desafios e trabalhando incansavelmente para proteger Morumbi.",
+    description: "Continuamos dedicados à nossa missão original, adaptando-nos constantemente aos novos desafios e trabalhando incansavelmente para proteger e servir a comunidade de Morumbi.",
     icon: ScrollText,
   },
 ];

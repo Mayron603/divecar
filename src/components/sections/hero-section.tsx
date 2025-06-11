@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ChevronRight } from 'lucide-react';
@@ -6,18 +5,7 @@ import { ChevronRight } from 'lucide-react';
 export function HeroSection() {
   return (
     <section className="relative bg-gradient-to-r from-primary via-primary/90 to-secondary text-primary-foreground py-20 md:py-32 rounded-lg shadow-2xl overflow-hidden mb-16">
-      <div className="absolute inset-0">
-        <Image
-          src="https://placehold.co/1200x600.png"
-          alt="Força Tática em ação"
-          data-ai-hint="tactical police team"
-          fill
-          style={{ objectFit: 'cover' }}
-          className="opacity-20"
-          priority
-        />
-        <div className="absolute inset-0 bg-black/30"></div>
-      </div>
+      <div className="absolute inset-0 bg-black/30"></div>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-headline font-extrabold tracking-tight drop-shadow-md">
           <span className="block">Bem-vindo ao Hub da</span>

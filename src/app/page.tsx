@@ -54,27 +54,24 @@ export default function HomePage() {
           description="Veja um pouco do nosso dia a dia e dedicação à comunidade de Morumbi."
           icon={Video}
         />
-        <Card className="shadow-xl overflow-hidden">
-          <CardContent className="p-0">
-            {/* 
-              IMPORTANTE: Para este vídeo funcionar, crie uma pasta 'videos' 
-              dentro da sua pasta 'public' e coloque o arquivo 'PMESP.mp4' lá.
-              O caminho final deve ser: public/videos/PMESP.mp4
-            */}
-            <video 
-              className="w-full h-auto"
-              controls 
-              preload="metadata"
-              aria-label="Vídeo institucional da Força Tática de Morumbi"
-            >
-              <source src="/videos/PMESP.mp4" type="video/mp4" />
-              Seu navegador não suporta o elemento de vídeo.
-            </video>
-          </CardContent>
-        </Card>
-         <p className="mt-4 text-sm text-center text-muted-foreground">
-          Nota: Certifique-se de que o arquivo de vídeo <code>PMESP.mp4</code> está localizado em <code>public/videos/PMESP.mp4</code>.
-        </p>
+        <div className="flex justify-center">
+          <Card className="shadow-xl overflow-hidden max-w-2xl w-full">
+            <CardContent className="p-0">
+              <video 
+                className="w-full h-auto"
+                autoPlay
+                loop
+                muted
+                playsInline 
+                preload="metadata"
+                aria-label="Vídeo institucional da Força Tática de Morumbi"
+              >
+                <source src="/videos/PMESP.mp4" type="video/mp4" />
+                Seu navegador não suporta o elemento de vídeo.
+              </video>
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
       <section className="text-center py-12 bg-card p-8 rounded-lg shadow-xl">

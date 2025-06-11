@@ -1,119 +1,108 @@
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Shield, Award, ChevronDown, ChevronRight, UserSquare, Landmark } from 'lucide-react';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import type { LucideIcon } from 'lucide-react';
+import { 
+  Users, 
+  Shield, 
+  Award, 
+  User, 
+  Users2, 
+  Badge, 
+  Star, 
+  GraduationCap, 
+  ChevronUp, 
+  ChevronsUp, 
+  ShieldCheck, 
+  Briefcase, 
+  Landmark,
+  TowerControl
+} from 'lucide-react';
 
 interface Rank {
   name: string;
   description: string;
   icon: LucideIcon;
-  personnel?: string[];
-  subUnits?: Rank[];
 }
 
 const hierarchyData: Rank[] = [
   {
-    name: "Comandante Geral",
-    description: "Responsável pela liderança estratégica e operacional de toda a Força Tática.",
-    icon: Award,
-    personnel: ["Cel. Silva"],
+    name: "Soldado",
+    description: "A base da força, responsável pelo patrulhamento ostensivo e pela execução direta das ordens.",
+    icon: User,
   },
   {
-    name: "Subcomandante",
-    description: "Auxilia o Comandante Geral e supervisiona as operações diárias.",
+    name: "Cabo",
+    description: "Graduado com experiência, auxilia o Sargento e lidera pequenas frações de tropa em missões específicas.",
     icon: Shield,
-    personnel: ["Ten. Cel. Oliveira"],
   },
   {
-    name: "Departamentos Operacionais",
-    description: "Unidades especializadas responsáveis por diferentes aspectos da segurança.",
+    name: "3º Sargento",
+    description: "Primeira graduação do círculo de Sargentos, elo fundamental entre o comando e a tropa, liderando equipes e instruindo.",
+    icon: Users2,
+  },
+  {
+    name: "2º Sargento",
+    description: "Sargento com maior experiência e responsabilidade, supervisiona equipes e missões de maior complexidade.",
+    icon: Badge,
+  },
+  {
+    name: "1º Sargento",
+    description: "Graduado experiente, auxilia os oficiais no planejamento e execução de operações, e na administração.",
+    icon: Star,
+  },
+  {
+    name: "Subtenente",
+    description: "Graduação máxima entre os praças, possui vasta experiência e atua como principal assessor dos oficiais em questões de tropa.",
+    icon: Award, 
+  },
+  {
+    name: "Aspirante a Oficial",
+    description: "Em período de estágio probatório após a formação, preparando-se para o primeiro posto de oficial.",
+    icon: GraduationCap,
+  },
+  {
+    name: "2º Tenente",
+    description: "Primeiro posto do oficialato, comanda pelotões e assume responsabilidades de liderança em operações.",
+    icon: ChevronUp,
+  },
+  {
+    name: "1º Tenente",
+    description: "Oficial intermediário, comanda pelotões ou seções, e pode assumir funções de staff.",
+    icon: ChevronsUp,
+  },
+  {
+    name: "Capitão",
+    description: "Comanda companhias ou assume chefias de seções administrativas/operacionais, elo entre oficiais subalternos e superiores.",
+    icon: ShieldCheck,
+  },
+  {
+    name: "Major",
+    description: "Oficial superior, assume funções de estado-maior, chefia de seções ou subcomando de unidades.",
+    icon: Briefcase,
+  },
+  {
+    name: "Tenente-Coronel",
+    description: "Oficial superior de alto escalão, comanda batalhões ou grandes seções, ou atua como subcomandante da força.",
     icon: Landmark,
-    subUnits: [
-      {
-        name: "Companhia de Operações Especiais (COE)",
-        description: "Equipe de elite para missões de alto risco e complexidade.",
-        icon: Users,
-        personnel: ["Cap. Souza (Líder)", "Sgt. Pereira", "Cabo Alves"],
-      },
-      {
-        name: "Patrulhamento Tático Móvel (PATAMO)",
-        description: "Unidades de resposta rápida e patrulhamento ostensivo em áreas críticas.",
-        icon: UserSquare,
-        personnel: ["Cap. Lima (Líder)", "Sgt. Costa", "Cabo Ferreira"],
-      },
-      {
-        name: "Departamento de Inteligência",
-        description: "Coleta e análise de informações para prevenção e combate ao crime.",
-        icon: Shield,
-        personnel: ["Maj. Andrade (Líder)", "Sgt. Mendes"],
-      },
-    ],
   },
   {
-    name: "Suporte Administrativo",
-    description: "Setores que garantem o funcionamento e a logística da Força Tática.",
-    icon: Users,
-    subUnits: [
-       {
-        name: "Recursos Humanos",
-        description: "Gestão de pessoal, treinamento e desenvolvimento.",
-        icon: UserSquare,
-       },
-       {
-        name: "Logística e Suprimentos",
-        description: "Gerenciamento de equipamentos, veículos e materiais.",
-        icon: UserSquare,
-       }
-    ]
-  }
+    name: "Coronel",
+    description: "Posto máximo da carreira, comanda grandes unidades, diretorias ou assume o Comando Geral da Força.",
+    icon: TowerControl,
+  },
 ];
 
 const RankCard = ({ rank }: { rank: Rank }) => (
-  <Card className="shadow-lg mb-6">
+  <Card className="shadow-lg mb-6 hover:shadow-xl transition-shadow duration-300">
     <CardHeader>
       <div className="flex items-center gap-3">
         <rank.icon className="h-8 w-8 text-accent" />
         <CardTitle className="text-2xl text-primary">{rank.name}</CardTitle>
       </div>
-      <CardDescription className="text-md mt-1">{rank.description}</CardDescription>
     </CardHeader>
-    { (rank.personnel && rank.personnel.length > 0) || (rank.subUnits && rank.subUnits.length > 0) ? (
-      <CardContent>
-        {rank.personnel && rank.personnel.length > 0 && (
-          <div className="mb-4">
-            <h4 className="font-semibold text-muted-foreground mb-1">Pessoal Chave:</h4>
-            <ul className="list-disc list-inside ml-4 text-foreground">
-              {rank.personnel.map(p => <li key={p}>{p}</li>)}
-            </ul>
-          </div>
-        )}
-        {rank.subUnits && rank.subUnits.length > 0 && (
-           <Accordion type="single" collapsible className="w-full">
-            {rank.subUnits.map((subUnit, index) => (
-              <AccordionItem value={`item-${index}`} key={subUnit.name}>
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-2 text-lg font-medium">
-                    <subUnit.icon className="h-5 w-5 text-secondary" />
-                    {subUnit.name}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pl-6">
-                  <p className="text-muted-foreground mb-2">{subUnit.description}</p>
-                  {subUnit.personnel && subUnit.personnel.length > 0 && (
-                     <div>
-                        <h5 className="font-semibold text-muted-foreground text-sm mb-1">Pessoal:</h5>
-                        <ul className="list-disc list-inside ml-2 text-foreground text-sm">
-                        {subUnit.personnel.map(p => <li key={p}>{p}</li>)}
-                        </ul>
-                    </div>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        )}
-      </CardContent>
-    ) : null}
+    <CardContent>
+      <CardDescription className="text-md mt-1 text-foreground leading-relaxed">{rank.description}</CardDescription>
+    </CardContent>
   </Card>
 );
 
@@ -122,10 +111,10 @@ export default function HierarchyPage() {
     <div className="space-y-8">
       <PageHeader
         title="Nossa Hierarquia"
-        description="Conheça a estrutura de comando e as divisões da Força Tática de Morumbi, projetada para máxima eficiência e coordenação."
+        description="Conheça a estrutura de postos e graduações da Força Tática de Morumbi, desde a base até o mais alto comando."
         icon={Users}
       />
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
         {hierarchyData.map(rank => <RankCard key={rank.name} rank={rank} />)}
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { HeroSection } from '@/components/sections/hero-section';
 import { InfoCard } from '@/components/common/info-card';
-import { Users, ScrollText, Info, ShieldCheck, Video } from 'lucide-react';
+import { Users, ScrollText, Info, ShieldCheck, Video, Shirt } from 'lucide-react';
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -50,12 +50,12 @@ export default function HomePage() {
 
       <section className="py-12">
         <PageHeader
-          title="Força Tática em Ação"
-          description="Veja um pouco do nosso dia a dia e dedicação à comunidade de Morumbi."
-          icon={Video}
+          title="Nossa Identidade Visual"
+          description="Conheça os detalhes e o simbolismo por trás dos uniformes da Força Tática de Morumbi."
+          icon={Shirt}
         />
         <div className="flex justify-center">
-          <Card className="shadow-xl overflow-hidden max-w-2xl w-full">
+          <Card className="shadow-xl overflow-hidden max-w-3xl w-full">
             <CardContent className="p-0">
               <video 
                 className="w-full h-auto"
@@ -64,7 +64,7 @@ export default function HomePage() {
                 muted
                 playsInline 
                 preload="metadata"
-                aria-label="Vídeo institucional da Força Tática de Morumbi"
+                aria-label="Vídeo institucional da Força Tática de Morumbi - Uniformes"
               >
                 <source src="/videos/PMESP.mp4" type="video/mp4" />
                 Seu navegador não suporta o elemento de vídeo.

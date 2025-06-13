@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, type FormEvent, useRef } from 'react';
@@ -21,7 +22,7 @@ import {
   getInvestigations,
   updateInvestigation,
   deleteInvestigation,
-  uploadFileToSupabaseStorage, // Expects FormData now
+  uploadFileToSupabaseStorage,
   deleteFileFromSupabaseStorageUrl
 } from '@/lib/supabase/investigationService';
 import Image from 'next/image';
@@ -54,7 +55,7 @@ export default function InvestigationsPage() {
       toast({
         variant: "destructive",
         title: "Erro ao Carregar Investigações",
-        description: error.message || `Não foi possível buscar os dados do Supabase. Verifique suas políticas RLS e a conexão.`,
+        description: error.message || `Não foi possível buscar os dados. Verifique suas políticas RLS e a conexão.`,
       });
       console.error("[InvestigationsPage] Error fetching investigations from Supabase:", error);
     } finally {
@@ -109,7 +110,7 @@ export default function InvestigationsPage() {
                 assignedInvestigator,
                 status,
                 occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
-                mediaUrls: [],
+                mediaUrls: [], // Initial record starts with no media
             };
             newInvestigationBase = await addInvestigation(initialPayload);
             currentInvestigationId = newInvestigationBase.id;
@@ -140,21 +141,25 @@ export default function InvestigationsPage() {
       for (let i = 0; i < selectedFiles.length; i++) {
         formData.append('mediaFiles', selectedFiles[i]);
       }
+      console.log("[InvestigationsPage] FormData prepared for upload:", formData.get('investigationId'), Array.from(formData.getAll('mediaFiles')).length, "files");
 
       try {
+        console.log("[InvestigationsPage] Calling uploadFileToSupabaseStorage server action...");
         const uploadedUrls = await uploadFileToSupabaseStorage(formData);
         finalMediaUrls = [...finalMediaUrls, ...uploadedUrls];
         toast({ title: "Mídias Enviadas", description: `${uploadedUrls.length} arquivo(s) de mídia foram processados.`});
       } catch (error: any) {
-        console.error("[InvestigationsPage] Error during file upload process to Supabase Storage:", error);
+        console.error("[InvestigationsPage] Error during file upload process to Supabase Storage. Full error object:", error);
+        console.error("[InvestigationsPage] Error message from upload process:", error.message);
+        console.error("[InvestigationsPage] Error stack from upload process:", error.stack);
         toast({
           variant: "destructive",
           title: "Erro no Upload de Mídia",
-          description: error.message || "Não foi possível carregar uma ou mais mídias. Verifique o console e suas políticas do Supabase Storage.",
+          description: error.message || "Não foi possível carregar uma ou mais mídias. Verifique o console do servidor e suas políticas do Supabase Storage.",
         });
-        setIsUploading(false); // Stop here if upload fails
+        setIsUploading(false); 
         setIsSubmitting(false);
-        return;
+        return; 
       } finally {
         setIsUploading(false);
       }
@@ -171,13 +176,13 @@ export default function InvestigationsPage() {
 
     try {
       await updateInvestigation(currentInvestigationId, investigationPayload);
-      toast({ title: editingInvestigation ? "Investigação Atualizada" : "Investigação Adicionada", description: `"${investigationPayload.title}" foi salva com sucesso.` });
+      toast({ title: editingInvestigation ? "Investigação Atualizada" : "Investigação Salva", description: `"${investigationPayload.title}" foi salva com sucesso.` });
 
       setShowForm(false);
       resetForm();
       fetchInvestigations();
     } catch (error: any) {
-      console.error("[InvestigationsPage] Error saving/updating investigation to Supabase:", error);
+      console.error("[InvestigationsPage] Error saving/updating investigation to Supabase (final step):", error);
       toast({
         variant: "destructive",
         title: "Erro ao Salvar Investigação",
@@ -205,7 +210,7 @@ export default function InvestigationsPage() {
         console.warn("[InvestigationsPage] Attempted to delete media for a non-editing investigation.");
         return;
     }
-    setIsSubmitting(true);
+    setIsSubmitting(true); // Consider a specific 'isDeletingMedia' state
     try {
       await deleteFileFromSupabaseStorageUrl(mediaUrlToDelete);
       const updatedMediaUrls = existingMediaUrls.filter(url => url !== mediaUrlToDelete);
@@ -216,13 +221,13 @@ export default function InvestigationsPage() {
 
       toast({ title: "Mídia Removida", description: "O arquivo e sua referência foram removidos." });
       setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
-      fetchInvestigations(); // Re-fetch to update the card if it was showing this media
+      // fetchInvestigations(); // Re-fetch to update the card if it was showing this media - already done if form closes
     } catch (error: any) {
         console.error("[InvestigationsPage] Error deleting media from Supabase or updating record:", error);
         toast({
           variant: "destructive",
           title: "Erro ao Remover Mídia",
-          description: error.message || `Verifique o console.`,
+          description: error.message || `Verifique o console do servidor.`,
         });
     } finally {
         setIsSubmitting(false);
@@ -320,7 +325,7 @@ export default function InvestigationsPage() {
         <div className="flex items-center space-x-2">
           <AlertTriangle className="h-5 w-5 text-yellow-500" />
           <p className="text-sm text-muted-foreground">
-            <strong>Nota:</strong> Certifique-se de que seu projeto Supabase está configurado com a tabela 'investigations', o bucket 'investigationmedia', e as políticas RLS/Storage adequadas.
+            <strong>Nota:</strong> Certifique-se de que seu projeto Supabase está configurado com a tabela 'investigations' (RLS para SELECT, INSERT, UPDATE, DELETE), o bucket 'investigationmedia' (Políticas de Storage para upload/leitura/delete), e as variáveis de ambiente corretas.
           </p>
         </div>
       </Card>
@@ -481,8 +486,8 @@ export default function InvestigationsPage() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={isSubmitting || isUploading}>
-                  {(isSubmitting || isUploading) && !editingInvestigation && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {isUploading ? 'Enviando Mídia...' : (editingInvestigation ? 'Salvar Alterações' : 'Adicionar Investigação')}
+                  {(isSubmitting || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isUploading ? 'Enviando Mídia...' : (editingInvestigation ? 'Salvar Alterações' : 'Salvar Investigação')}
                 </Button>
               </div>
             </form>
@@ -567,3 +572,4 @@ export default function InvestigationsPage() {
     </div>
   );
 }
+

@@ -5,8 +5,10 @@
 import { cookies } from 'next/headers';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
+import type { Comment, CommentInput } from '@/types/comment';
 
 const INVESTIGATIONS_TABLE = 'investigations';
+const COMMENTS_TABLE = 'comments';
 const INVESTIGATION_MEDIA_BUCKET = 'investigationmedia';
 
 interface ServiceResponse<T = any> {
@@ -526,3 +528,86 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, supabase
   }
 }
 
+// Comments Service Functions
+export async function addComment(commentData: CommentInput): Promise<ServiceResponse<Comment>> {
+  const functionName = "addComment";
+  console.log(`[SupabaseService][${functionName}] Called with data:`, commentData);
+  try {
+    const cookieStore = cookies();
+    const supabase = createSupabaseServerClient(cookieStore);
+
+    const payloadToInsert = {
+      investigation_id: commentData.investigationId,
+      author_name: commentData.authorName,
+      content: commentData.content,
+    };
+
+    console.log(`[SupabaseService][${functionName}] Attempting to insert comment with payload:`, JSON.stringify(payloadToInsert, null, 2));
+
+    const { data: insertedData, error: insertError } = await supabase
+      .from(COMMENTS_TABLE)
+      .insert(payloadToInsert)
+      .select()
+      .single();
+
+    if (insertError || !insertedData) {
+      console.error(`[SupabaseService][${functionName}] Error inserting comment into database.`);
+      const { message: formattedMessage } = formatSupabaseError(insertError || new Error('No data returned from comment insert operation.'), `${functionName} - DB insert`);
+      return { success: false, error: formattedMessage };
+    }
+
+    console.log(`[SupabaseService][${functionName}] Comment record inserted successfully: ID: ${insertedData.id}. Returning success response.`);
+    return {
+      success: true,
+      data: {
+        id: insertedData.id,
+        investigationId: insertedData.investigation_id,
+        authorName: insertedData.author_name,
+        content: insertedData.content,
+        createdAt: new Date(insertedData.created_at).toISOString(),
+      },
+    };
+
+  } catch (error: any) {
+    console.error(`[SupabaseService][${functionName}] UNHANDLED EXCEPTION in main try-catch.`);
+    const { message: formattedMessage } = formatSupabaseError(error, functionName);
+    return { success: false, error: formattedMessage };
+  }
+}
+
+export async function getCommentsByInvestigationId(investigationId: string): Promise<ServiceResponse<Comment[]>> {
+  const functionName = "getCommentsByInvestigationId";
+  console.log(`[SupabaseService][${functionName}] Called for investigationId: ${investigationId}`);
+  try {
+    const cookieStore = cookies();
+    const supabase = createSupabaseServerClient(cookieStore);
+
+    const { data, error } = await supabase
+      .from(COMMENTS_TABLE)
+      .select('*')
+      .eq('investigation_id', investigationId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error(`[SupabaseService][${functionName}] Error fetching comments for investigation ${investigationId}.`);
+      const { message: formattedMessage } = formatSupabaseError(error, functionName);
+      return { success: false, error: formattedMessage };
+    }
+
+    console.log(`[SupabaseService][${functionName}] Successfully fetched ${data?.length ?? 0} comments for investigation ${investigationId}.`);
+    const comments: Comment[] = data ? data.map(c => ({
+      id: c.id,
+      investigationId: c.investigation_id,
+      authorName: c.author_name,
+      content: c.content,
+      createdAt: new Date(c.created_at).toISOString(),
+    })) : [];
+    
+    return { success: true, data: comments };
+
+  } catch (error: any) {
+    console.error(`[SupabaseService][${functionName}] UNHANDLED EXCEPTION in main try-catch.`);
+    const { message: formattedMessage } = formatSupabaseError(error, functionName);
+    return { success: false, error: formattedMessage };
+  }
+}

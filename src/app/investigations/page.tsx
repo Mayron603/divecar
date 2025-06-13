@@ -11,17 +11,23 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClock, ListChecks, Loader2, CalendarIcon, Link as LinkIcon, FileUp, Image as ImageIcon, VideoIcon, XCircle, KeyRound } from 'lucide-react';
+import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClock, ListChecks, Loader2, CalendarIcon, Link as LinkIcon, FileUp, Image as ImageIcon, VideoIcon, XCircle, KeyRound, MessageCircle, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
+import type { Comment, CommentInput } from '@/types/comment';
+
 import {
   addInvestigation,
   updateInvestigation,
   deleteInvestigation,
   deleteFileFromSupabaseStorageUrl,
   getInvestigations,
+  addComment,
+  getCommentsByInvestigationId,
 } from '@/lib/supabase/investigationService';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -55,13 +61,13 @@ const getErrorMessage = (error: any): string => {
     if (supabaseError.name && supabaseError.status) return `${supabaseError.name} (Status: ${supabaseError.status})`;
     try {
       const stringifiedError = JSON.stringify(error, Object.getOwnPropertyNames(error));
-      if (stringifiedError !== '{}') return stringifiedError;
+      if (stringifiedError !== '{}' && stringifiedError !== 'null') return stringifiedError;
     } catch (e) {
       // Ignore stringify error
     }
-    return "Não foi possível carregar esta mídia. Verifique o console para detalhes.";
+    return "Não foi possível carregar esta mídia ou processar a solicitação. Verifique o console para detalhes.";
   }
-  return "Não foi possível carregar esta mídia. Verifique o console para detalhes.";
+  return "Não foi possível carregar esta mídia ou processar a solicitação. Verifique o console para detalhes.";
 };
 
 
@@ -85,12 +91,20 @@ export default function InvestigationsPage() {
   
   const supabaseBrowserClient: SupabaseClient = createSupabaseBrowserClient();
 
-  // State for password prompt
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [passwordDialogType, setPasswordDialogType] = useState<'create' | 'delete' | null>(null);
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [itemPendingAction, setItemPendingAction] = useState<Investigation | null>(null);
   const [formSubmitPendingData, setFormSubmitPendingData] = useState<(() => Promise<void>) | null>(null);
+
+  // States for Comments Dialog
+  const [showCommentsDialog, setShowCommentsDialog] = useState(false);
+  const [commentsDialogInvestigation, setCommentsDialogInvestigation] = useState<Investigation | null>(null);
+  const [currentComments, setCurrentComments] = useState<Comment[]>([]);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [newCommentAuthor, setNewCommentAuthor] = useState('');
+  const [newCommentContent, setNewCommentContent] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
 
   const fetchInvestigations = async () => {
@@ -188,7 +202,7 @@ export default function InvestigationsPage() {
 
         for (let i = 0; i < selectedFiles.length; i++) {
           const file = selectedFiles[i];
-          const sanitizedFileNameBase = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.\-]/g, '');
+          const sanitizedFileNameBase = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_.\-]/g, '_');
           const fileNameWithTimestamp = `${Date.now()}_${sanitizedFileNameBase}`;
           const filePath = `${currentInvestigationId}/${fileNameWithTimestamp}`;
 
@@ -261,7 +275,7 @@ export default function InvestigationsPage() {
             description: updateOpResponse.error || `Verifique o console do servidor para detalhes.`,
         });
       } else {
-        toast({ title: editingInvestigation ? "Investigação Atualizada" : "Investigação Salva", description: `R.O. ${roNumber || updateOpResponse.data.roNumber} "${investigationPayload.title}" foi salva com sucesso.` });
+        toast({ title: editingInvestigation ? "Investigação Atualizada" : "Investigação Adicionada", description: `R.O. ${roNumber || updateOpResponse.data.roNumber} "${investigationPayload.title}" foi salva com sucesso.` });
         setShowForm(false);
         resetForm();
         fetchInvestigations();
@@ -291,12 +305,12 @@ export default function InvestigationsPage() {
       return;
     }
 
-    if (!editingInvestigation) { // Only ask for password on create
+    if (!editingInvestigation) { 
       setPasswordDialogType('create');
-      setFormSubmitPendingData(() => executeSubmitInvestigation); // Store the function to execute
+      setFormSubmitPendingData(() => executeSubmitInvestigation); 
       setShowPasswordDialog(true);
     } else {
-      await executeSubmitInvestigation(); // Proceed directly for edits
+      await executeSubmitInvestigation(); 
     }
   };
 
@@ -404,7 +418,7 @@ export default function InvestigationsPage() {
         setShowPasswordDialog(false);
         setCurrentPasswordInput('');
         if (formSubmitPendingData) {
-          await formSubmitPendingData(); // Execute the stored submit function
+          await formSubmitPendingData(); 
           setFormSubmitPendingData(null);
         }
       } else {
@@ -430,6 +444,57 @@ export default function InvestigationsPage() {
   };
 
 
+  const handleOpenCommentsDialog = async (investigation: Investigation) => {
+    setCommentsDialogInvestigation(investigation);
+    setShowCommentsDialog(true);
+    setIsLoadingComments(true);
+    setCurrentComments([]);
+    setNewCommentAuthor('');
+    setNewCommentContent('');
+    try {
+      const response = await getCommentsByInvestigationId(investigation.id);
+      if (response.success && response.data) {
+        setCurrentComments(response.data);
+      } else {
+        toast({ variant: "destructive", title: "Erro ao Carregar Comentários", description: response.error || "Não foi possível buscar os comentários." });
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erro ao Carregar Comentários", description: getErrorMessage(error) });
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
+  const handleAddComment = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!commentsDialogInvestigation || !newCommentAuthor.trim() || !newCommentContent.trim()) {
+      toast({ variant: "destructive", title: "Erro de Validação", description: "Nome do autor e conteúdo do comentário são obrigatórios." });
+      return;
+    }
+    setIsSubmittingComment(true);
+    try {
+      const commentInput: CommentInput = {
+        investigationId: commentsDialogInvestigation.id,
+        authorName: newCommentAuthor,
+        content: newCommentContent,
+      };
+      const response = await addComment(commentInput);
+      if (response.success && response.data) {
+        setCurrentComments(prevComments => [...prevComments, response.data!]);
+        setNewCommentAuthor('');
+        setNewCommentContent('');
+        toast({ title: "Comentário Adicionado", description: "Seu comentário foi salvo." });
+      } else {
+        toast({ variant: "destructive", title: "Erro ao Adicionar Comentário", description: response.error || "Não foi possível salvar o comentário." });
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erro ao Adicionar Comentário", description: getErrorMessage(error) });
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+
   const statusColors: Record<Investigation['status'], string> = {
     'Aberta': 'bg-blue-100 text-blue-700 border-blue-300',
     'Em Andamento': 'bg-yellow-100 text-yellow-700 border-yellow-300',
@@ -448,7 +513,7 @@ export default function InvestigationsPage() {
     if (!dateString) return 'Data desconhecida';
     try {
       const date = new Date(dateString);
-      return includeTime ? format(date, "dd/MM/yyyy HH:mm", { locale: ptBR }) : format(date, "dd/MM/yyyy", { locale: ptBR });
+      return includeTime ? format(date, "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) : format(date, "dd/MM/yyyy", { locale: ptBR });
     } catch (error) {
       console.error("Error formatting date from string:", dateString, error);
       return 'Data inválida';
@@ -511,7 +576,7 @@ export default function InvestigationsPage() {
     <div className="space-y-8">
       <PageHeader
         title="Gerenciamento de Investigações"
-        description="Adicione, visualize e gerencie as investigações."
+        description="Adicione, visualize, gerencie as investigações e adicione comentários."
         icon={FolderSearch}
       />
 
@@ -742,13 +807,23 @@ export default function InvestigationsPage() {
                   </div>
                 )}
               </CardContent>
-              <CardFooter className="flex justify-end space-x-2 border-t pt-4 mt-auto">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(inv)} disabled={isSubmitting || isUploading}>
-                  <Edit3 className="mr-1.5 h-4 w-4" /> Editar
+              <CardFooter className="flex justify-between items-center border-t pt-4 mt-auto">
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleOpenCommentsDialog(inv)}
+                    disabled={isSubmitting || isUploading}
+                >
+                  <MessageCircle className="mr-1.5 h-4 w-4" /> Comentários
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDeleteInvestigationClick(inv)} disabled={isSubmitting || isUploading}>
-                  <Trash2 className="mr-1.5 h-4 w-4" /> Excluir
-                </Button>
+                <div className="flex space-x-2">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(inv)} disabled={isSubmitting || isUploading}>
+                        <Edit3 className="mr-1.5 h-4 w-4" /> Editar
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDeleteInvestigationClick(inv)} disabled={isSubmitting || isUploading}>
+                        <Trash2 className="mr-1.5 h-4 w-4" /> Excluir
+                    </Button>
+                </div>
               </CardFooter>
             </Card>
           ))}
@@ -782,6 +857,82 @@ export default function InvestigationsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {commentsDialogInvestigation && (
+        <Dialog open={showCommentsDialog} onOpenChange={(isOpen) => {
+            if (!isOpen) {
+                setShowCommentsDialog(false);
+                setCommentsDialogInvestigation(null);
+            }
+        }}>
+          <DialogContent className="sm:max-w-[625px]">
+            <DialogHeader>
+              <DialogTitle>Comentários para R.O.: {commentsDialogInvestigation.roNumber}</DialogTitle>
+              <DialogDescription>Veja e adicione comentários para esta investigação.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                {isLoadingComments ? (
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-2 text-muted-foreground">Carregando comentários...</p>
+                  </div>
+                ) : currentComments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center">Nenhum comentário ainda.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {currentComments.map((comment) => (
+                      <div key={comment.id} className="p-3 bg-muted/50 rounded-md shadow-sm">
+                        <div className="flex justify-between items-center mb-1">
+                          <p className="text-sm font-semibold text-primary">{comment.authorName}</p>
+                          <p className="text-xs text-muted-foreground">{formatDateString(comment.createdAt, true)}</p>
+                        </div>
+                        <p className="text-sm text-foreground whitespace-pre-wrap">{comment.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+              <form onSubmit={handleAddComment} className="space-y-3 pt-4 border-t">
+                <div>
+                  <Label htmlFor="commentAuthorName" className="text-sm font-medium">Seu Nome</Label>
+                  <Input
+                    id="commentAuthorName"
+                    value={newCommentAuthor}
+                    onChange={(e) => setNewCommentAuthor(e.target.value)}
+                    placeholder="Digite seu nome"
+                    disabled={isSubmittingComment}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="commentContent" className="text-sm font-medium">Seu Comentário</Label>
+                  <Textarea
+                    id="commentContent"
+                    value={newCommentContent}
+                    onChange={(e) => setNewCommentContent(e.target.value)}
+                    placeholder="Digite seu comentário aqui..."
+                    rows={3}
+                    disabled={isSubmittingComment}
+                    required
+                  />
+                </div>
+                <Button type="submit" disabled={isSubmittingComment || !newCommentAuthor.trim() || !newCommentContent.trim()} className="w-full">
+                  {isSubmittingComment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Send className="mr-2 h-4 w-4" /> Adicionar Comentário
+                </Button>
+              </form>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" onClick={() => setShowCommentsDialog(false)}>
+                  Fechar
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

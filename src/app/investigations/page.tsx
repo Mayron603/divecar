@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClock, ListChecks, Loader2, CalendarIcon, Link as LinkIcon, FileUp, Image as ImageIcon, VideoIcon, XCircle } from 'lucide-react';
+import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClock, ListChecks, Loader2, CalendarIcon, Link as LinkIcon, FileUp, Image as ImageIcon, VideoIcon, XCircle, KeyRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
 import {
@@ -26,16 +26,28 @@ import {
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import NextImage from 'next/image';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 const INVESTIGATION_MEDIA_BUCKET = 'investigationmedia';
+const PASSWORD_FOR_CREATE = "criar123";
+const PASSWORD_FOR_DELETE = "apagar789";
 
-// Helper function to extract a meaningful error message
+
 const getErrorMessage = (error: any): string => {
   if (!error) return "Ocorreu um erro desconhecido.";
   if (typeof error === 'string') return error;
   if (error instanceof Error) return error.message;
   if (typeof error === 'object' && error !== null) {
-    // Attempt to get specific Supabase error properties
     const supabaseError = error as { message?: string; details?: string; hint?: string; error_description?: string, error?: string, code?: string, status?: number, name?: string };
     if (supabaseError.message) return supabaseError.message;
     if (supabaseError.error_description) return supabaseError.error_description;
@@ -72,6 +84,13 @@ export default function InvestigationsPage() {
   const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>([]);
   
   const supabaseBrowserClient: SupabaseClient = createSupabaseBrowserClient();
+
+  // State for password prompt
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [passwordDialogType, setPasswordDialogType] = useState<'create' | 'delete' | null>(null);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [itemPendingAction, setItemPendingAction] = useState<Investigation | null>(null);
+  const [formSubmitPendingData, setFormSubmitPendingData] = useState<(() => Promise<void>) | null>(null);
 
 
   const fetchInvestigations = async () => {
@@ -110,7 +129,6 @@ export default function InvestigationsPage() {
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("[InvestigationsPage] handleFileChange triggered. Files selected:", event.target.files);
     if (event.target.files && event.target.files.length > 0) {
       Array.from(event.target.files).forEach((file, index) => {
         console.log(`[InvestigationsPage] Selected file ${index + 1}: Name: ${file.name}, Size: ${file.size}, Type: ${file.type}`);
@@ -119,17 +137,7 @@ export default function InvestigationsPage() {
     setSelectedFiles(event.target.files);
   };
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!title || !assignedInvestigator) {
-      toast({
-        variant: "destructive",
-        title: "Erro de Validação",
-        description: "Título e Investigador Responsável são obrigatórios.",
-      });
-      return;
-    }
-
+  const executeSubmitInvestigation = async () => {
     setIsSubmitting(true);
     let currentInvestigationId = editingInvestigation?.id;
     let finalMediaUrls: string[] = editingInvestigation ? [...(editingInvestigation.mediaUrls || [])] : [];
@@ -180,7 +188,7 @@ export default function InvestigationsPage() {
 
         for (let i = 0; i < selectedFiles.length; i++) {
           const file = selectedFiles[i];
-          const sanitizedFileNameBase = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.\-]/g, '');
+          const sanitizedFileNameBase = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.\-]/g, '');
           const fileNameWithTimestamp = `${Date.now()}_${sanitizedFileNameBase}`;
           const filePath = `${currentInvestigationId}/${fileNameWithTimestamp}`;
 
@@ -194,9 +202,8 @@ export default function InvestigationsPage() {
             });
 
           if (uploadError) {
-            console.error(`[InvestigationsPage] Client-side upload error for ${file.name}:`, uploadError);
             let detailedError = getErrorMessage(uploadError);
-            console.error(`[InvestigationsPage] Client-side upload error for ${file.name} (extracted message): "${detailedError}"`);
+            console.error(`[InvestigationsPage] Client-side upload error for ${file.name}: "${detailedError}"`, uploadError);
             console.error(`[InvestigationsPage] Client-side upload error for ${file.name} (stringified):`, JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError)));
 
             toast({
@@ -273,6 +280,26 @@ export default function InvestigationsPage() {
     }
   };
 
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!title || !assignedInvestigator) {
+      toast({
+        variant: "destructive",
+        title: "Erro de Validação",
+        description: "Título e Investigador Responsável são obrigatórios.",
+      });
+      return;
+    }
+
+    if (!editingInvestigation) { // Only ask for password on create
+      setPasswordDialogType('create');
+      setFormSubmitPendingData(() => executeSubmitInvestigation); // Store the function to execute
+      setShowPasswordDialog(true);
+    } else {
+      await executeSubmitInvestigation(); // Proceed directly for edits
+    }
+  };
+
   const handleEdit = (investigation: Investigation) => {
     resetForm();
     setEditingInvestigation(investigation);
@@ -282,7 +309,6 @@ export default function InvestigationsPage() {
     setStatus(investigation.status);
     setOccurrenceDate(investigation.occurrenceDate ? new Date(investigation.occurrenceDate) : undefined);
     setExistingMediaUrls(investigation.mediaUrls || []);
-    console.log("[InvestigationsPage] Editing. Existing media URLs loaded into form state:", investigation.mediaUrls);
     setShowForm(true);
   };
 
@@ -336,7 +362,7 @@ export default function InvestigationsPage() {
   };
 
 
-  const handleDeleteInvestigation = async (investigation: Investigation) => {
+  const executeDeleteInvestigation = async (investigation: Investigation) => {
     setIsSubmitting(true);
     try {
       console.log(`[InvestigationsPage] Calling deleteInvestigation for ID: ${investigation.id}`);
@@ -361,8 +387,48 @@ export default function InvestigationsPage() {
       });
     } finally {
       setIsSubmitting(false);
+      setItemPendingAction(null);
     }
   };
+  
+  const handleDeleteInvestigationClick = (investigation: Investigation) => {
+    setItemPendingAction(investigation);
+    setPasswordDialogType('delete');
+    setShowPasswordDialog(true);
+  };
+
+
+  const handlePasswordDialogConfirm = async () => {
+    if (passwordDialogType === 'create') {
+      if (currentPasswordInput === PASSWORD_FOR_CREATE) {
+        setShowPasswordDialog(false);
+        setCurrentPasswordInput('');
+        if (formSubmitPendingData) {
+          await formSubmitPendingData(); // Execute the stored submit function
+          setFormSubmitPendingData(null);
+        }
+      } else {
+        toast({ variant: "destructive", title: "Senha Incorreta", description: "A senha para criar a investigação está incorreta." });
+      }
+    } else if (passwordDialogType === 'delete' && itemPendingAction) {
+      if (currentPasswordInput === PASSWORD_FOR_DELETE) {
+        setShowPasswordDialog(false);
+        setCurrentPasswordInput('');
+        await executeDeleteInvestigation(itemPendingAction);
+      } else {
+        toast({ variant: "destructive", title: "Senha Incorreta", description: "A senha para excluir a investigação está incorreta." });
+      }
+    }
+  };
+
+  const handlePasswordDialogCancel = () => {
+    setShowPasswordDialog(false);
+    setCurrentPasswordInput('');
+    setPasswordDialogType(null);
+    setItemPendingAction(null);
+    setFormSubmitPendingData(null);
+  };
+
 
   const statusColors: Record<Investigation['status'], string> = {
     'Aberta': 'bg-blue-100 text-blue-700 border-blue-300',
@@ -445,7 +511,7 @@ export default function InvestigationsPage() {
     <div className="space-y-8">
       <PageHeader
         title="Gerenciamento de Investigações"
-        description="Adicione, visualize e gerencie as investigações da DIVECAR Osasco."
+        description="Adicione, visualize e gerencie as investigações."
         icon={FolderSearch}
       />
 
@@ -680,7 +746,7 @@ export default function InvestigationsPage() {
                 <Button variant="outline" size="sm" onClick={() => handleEdit(inv)} disabled={isSubmitting || isUploading}>
                   <Edit3 className="mr-1.5 h-4 w-4" /> Editar
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDeleteInvestigation(inv)} disabled={isSubmitting || isUploading}>
+                <Button variant="destructive" size="sm" onClick={() => handleDeleteInvestigationClick(inv)} disabled={isSubmitting || isUploading}>
                   <Trash2 className="mr-1.5 h-4 w-4" /> Excluir
                 </Button>
               </CardFooter>
@@ -688,10 +754,34 @@ export default function InvestigationsPage() {
           ))}
         </div>
       )}
+       <AlertDialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <KeyRound className="mr-2 h-5 w-5 text-primary" />
+              {passwordDialogType === 'create' ? 'Senha para Criar Investigação' : 'Senha para Excluir Investigação'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Por favor, insira a senha para continuar com esta ação.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-2">
+            <Label htmlFor="password-prompt" className="sr-only">Senha</Label>
+            <Input
+              id="password-prompt"
+              type="password"
+              placeholder="Digite a senha"
+              value={currentPasswordInput}
+              onChange={(e) => setCurrentPasswordInput(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handlePasswordDialogCancel}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handlePasswordDialogConfirm}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
-
-    
-
-    

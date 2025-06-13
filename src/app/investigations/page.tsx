@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClock, ListChecks, Loader2, CalendarIcon, Link as LinkIcon, AlertTriangle, FileUp, Image as ImageIcon, VideoIcon, XCircle } from 'lucide-react';
+import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClock, ListChecks, Loader2, CalendarIcon, Link as LinkIcon, FileUp, Image as ImageIcon, VideoIcon, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
 import {
@@ -21,7 +21,7 @@ import {
   updateInvestigation,
   deleteInvestigation,
   deleteFileFromSupabaseStorageUrl,
-  getInvestigations, // Adicionada a importação que faltava
+  getInvestigations,
 } from '@/lib/supabase/investigationService';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -40,8 +40,7 @@ const getErrorMessage = (error: any): string => {
     if (supabaseError.message) return supabaseError.message;
     if (supabaseError.error_description) return supabaseError.error_description;
     if (supabaseError.error && typeof supabaseError.error === 'string') return supabaseError.error;
-    if (supabaseError.name && supabaseError.status) return `${supabaseError.name} (Status: ${supabaseError.status})`; // e.g. StorageApiError (Status: 404)
-    // Fallback to stringifying the object if no common properties are found
+    if (supabaseError.name && supabaseError.status) return `${supabaseError.name} (Status: ${supabaseError.status})`;
     try {
       const stringifiedError = JSON.stringify(error, Object.getOwnPropertyNames(error));
       if (stringifiedError !== '{}') return stringifiedError;
@@ -181,8 +180,7 @@ export default function InvestigationsPage() {
 
         for (let i = 0; i < selectedFiles.length; i++) {
           const file = selectedFiles[i];
-          // Sanitize file name: replace spaces with underscores, remove most non-alphanumeric chars except . - _
-          const sanitizedFileNameBase = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '');
+          const sanitizedFileNameBase = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.\-]/g, '');
           const fileNameWithTimestamp = `${Date.now()}_${sanitizedFileNameBase}`;
           const filePath = `${currentInvestigationId}/${fileNameWithTimestamp}`;
 
@@ -206,8 +204,6 @@ export default function InvestigationsPage() {
               title: `Erro no Upload de ${file.name}`,
               description: detailedError,
             });
-            // Don't set isUploading/isSubmitting to false here if you want to allow other files to attempt upload
-            // For now, let's stop the entire submission if one file fails.
             setIsUploading(false);
             setIsSubmitting(false);
             return; 
@@ -448,19 +444,10 @@ export default function InvestigationsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Gerenciamento de Investigações (Supabase)"
-        description="Adicione, visualize e gerencie as investigações da DIVECAR Osasco com Supabase. Uploads de mídia são feitos diretamente pelo cliente."
+        title="Gerenciamento de Investigações"
+        description="Adicione, visualize e gerencie as investigações da DIVECAR Osasco."
         icon={FolderSearch}
       />
-
-      <Card className="p-4 bg-card shadow-md">
-        <div className="flex items-center space-x-2">
-          <AlertTriangle className="h-5 w-5 text-yellow-500" />
-          <p className="text-sm text-muted-foreground">
-            <strong>Nota:</strong> Uploads de mídia agora são feitos diretamente do seu navegador para o Supabase Storage. Certifique-se de que suas políticas do bucket 'investigationmedia' permitem INSERT e SELECT públicos (ou para 'authenticated' se aplicável e o bucket for público).
-          </p>
-        </div>
-      </Card>
 
       {!showForm && (
         <div className="flex justify-center mb-8">
@@ -704,5 +691,7 @@ export default function InvestigationsPage() {
     </div>
   );
 }
+
+    
 
     

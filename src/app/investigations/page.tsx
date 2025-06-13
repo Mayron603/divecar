@@ -18,17 +18,27 @@ import { useToast } from '@/hooks/use-toast';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
 import {
   addInvestigation,
-  getInvestigations,
   updateInvestigation,
   deleteInvestigation,
   deleteFileFromSupabaseStorageUrl,
-  // OBSOLETE_uploadFileToServerAction, 
 } from '@/lib/supabase/investigationService';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import NextImage from 'next/image';
 
 const INVESTIGATION_MEDIA_BUCKET = 'investigationmedia';
+
+// Helper function to extract a meaningful error message
+const getErrorMessage = (error: any): string => {
+  if (!error) return "Ocorreu um erro desconhecido.";
+  if (typeof error === 'string') return error;
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object') {
+    return error.message || error.error_description || error.error || JSON.stringify(error);
+  }
+  return "Não foi possível carregar esta mídia. Verifique o console para detalhes.";
+};
+
 
 export default function InvestigationsPage() {
   const { toast } = useToast();
@@ -60,7 +70,7 @@ export default function InvestigationsPage() {
       toast({
         variant: "destructive",
         title: "Erro ao Carregar Investigações",
-        description: error.message || `Não foi possível buscar os dados. Verifique suas políticas RLS e a conexão.`,
+        description: getErrorMessage(error) || `Não foi possível buscar os dados. Verifique suas políticas RLS e a conexão.`,
       });
       console.error("[InvestigationsPage] Error fetching investigations. Full error object:", error);
     } finally {
@@ -141,7 +151,7 @@ export default function InvestigationsPage() {
       } else {
         currentInvestigationId = editingInvestigation.id;
          console.log(`[InvestigationsPage] Editing existing investigation. ID: ${currentInvestigationId}, Existing media URLs:`, existingMediaUrls);
-         finalMediaUrls = [...existingMediaUrls]; // Ensure finalMediaUrls starts with existing ones when editing
+         finalMediaUrls = [...existingMediaUrls]; 
       }
 
       if (!currentInvestigationId) {
@@ -157,27 +167,47 @@ export default function InvestigationsPage() {
 
         for (let i = 0; i < selectedFiles.length; i++) {
           const file = selectedFiles[i];
-          const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-          const filePath = `${currentInvestigationId}/${fileName}`;
-          console.log(`[InvestigationsPage] Client-side upload: Attempting to upload ${file.name} to path: ${filePath} in bucket ${INVESTIGATION_MEDIA_BUCKET}`);
+          const sanitizedFileName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '');
+          const fileNameWithTimestamp = `${Date.now()}_${sanitizedFileName}`;
+          const filePath = `${currentInvestigationId}/${fileNameWithTimestamp}`;
+
+          console.log(`[InvestigationsPage] Client-side upload: Attempting to upload ${file.name} (sanitized: ${fileNameWithTimestamp}) to path: ${filePath} in bucket ${INVESTIGATION_MEDIA_BUCKET}`);
           
           const { data: uploadData, error: uploadError } = await supabaseBrowserClient.storage
             .from(INVESTIGATION_MEDIA_BUCKET)
             .upload(filePath, file, {
               cacheControl: '3600',
-              upsert: false,
+              upsert: false, // Consider true if re-uploading the same file path should overwrite
             });
 
           if (uploadError) {
-            console.error(`[InvestigationsPage] Client-side upload error for ${file.name}:`, uploadError);
+            console.error(`[InvestigationsPage] Client-side upload error for ${file.name}. Raw error object:`, uploadError);
+            let detailedError = 'Unknown upload error.';
+            if (uploadError instanceof Error) {
+                detailedError = uploadError.message;
+            } else if (typeof uploadError === 'object' && uploadError !== null) {
+                const supabaseError = uploadError as any;
+                detailedError = supabaseError.message || supabaseError.error_description || supabaseError.error || JSON.stringify(uploadError);
+                console.error(`[InvestigationsPage] Client-side upload error for ${file.name} (Stringified Object):`, JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError)));
+            } else if (typeof uploadError === 'string') {
+                detailedError = uploadError;
+            }
+            console.error(`[InvestigationsPage] Client-side upload error for ${file.name} (Full Object passed to console):`, uploadError);
+
+
             toast({
               variant: "destructive",
               title: `Erro no Upload de ${file.name}`,
-              description: uploadError.message || "Não foi possível carregar esta mídia.",
+              description: detailedError,
             });
             setIsUploading(false);
             setIsSubmitting(false);
-            return; 
+            // Do not return immediately; allow other files to be attempted or proceed to save metadata without this file.
+            // Consider how to handle partial success if some files upload and others don't.
+            // For now, if one fails, we stop this particular upload attempt for this file and continue the loop.
+            // If the whole process should stop, uncomment the return below.
+            // return; 
+            continue; // Skip to the next file if one fails
           }
 
           if (uploadData?.path) {
@@ -195,6 +225,7 @@ export default function InvestigationsPage() {
           }
         }
         finalMediaUrls.push(...uploadedFileUrlsThisSession);
+        console.log("[InvestigationsPage] finalMediaUrls after processing selectedFiles:", finalMediaUrls);
         setIsUploading(false);
          if (uploadedFileUrlsThisSession.length > 0) {
             toast({ title: "Mídias Enviadas", description: `${uploadedFileUrlsThisSession.length} novo(s) arquivo(s) de mídia processados.`});
@@ -235,7 +266,7 @@ export default function InvestigationsPage() {
       toast({
         variant: "destructive",
         title: "Erro Inesperado no Formulário",
-        description: error.message || "Ocorreu um erro inesperado ao processar o formulário.",
+        description: getErrorMessage(error),
       });
     } finally {
       setIsSubmitting(false);
@@ -290,6 +321,7 @@ export default function InvestigationsPage() {
                 inv.id === editingInvestigation.id ? { ...inv, mediaUrls: updatedMediaUrls } : inv
             )
         );
+        // Also update the editingInvestigation state to reflect the removed media URL
         setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
       }
 
@@ -298,7 +330,7 @@ export default function InvestigationsPage() {
         toast({
           variant: "destructive",
           title: "Erro Inesperado na Remoção de Mídia",
-          description: error.message || `Verifique o console.`,
+          description: getErrorMessage(error) || `Verifique o console.`,
         });
     } finally {
         setIsSubmitting(false);
@@ -327,7 +359,7 @@ export default function InvestigationsPage() {
       toast({
         variant: "destructive",
         title: "Erro Crítico ao Remover Investigação",
-        description: error.message || `Verifique o console do servidor para detalhes.`,
+        description: getErrorMessage(error) || `Verifique o console do servidor para detalhes.`,
       });
     } finally {
       setIsSubmitting(false);
@@ -389,9 +421,23 @@ export default function InvestigationsPage() {
     const fileName = (() => {
         try {
             const decodedUrl = decodeURIComponent(url);
-            return new URL(decodedUrl).pathname.split('/').pop() || 'Link de Mídia';
+            // Extrai o nome do arquivo da URL, lidando com possíveis query strings
+            let path = new URL(decodedUrl).pathname;
+            // Remove a parte do bucket se presente no início do path
+             if (path.startsWith(`/storage/v1/object/public/${INVESTIGATION_MEDIA_BUCKET}/`)) {
+                path = path.substring(`/storage/v1/object/public/${INVESTIGATION_MEDIA_BUCKET}/`.length);
+            }
+            // Remove o ID da investigação e a timestamp se o padrão for conhecido
+            // Ex: eeee1f76-f1c8-4089-8cad-f3bd76675949/1749846686810_image_optimized_1.png
+            // Tentativa de remover o UUID/ e a timestamp_
+            const nameWithoutPrefix = path.replace(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/\d+_/, '');
+            return nameWithoutPrefix || path.split('/').pop() || 'Link de Mídia';
         } catch {
-            return 'Link de Mídia';
+            // Fallback se a URL for malformada ou não seguir o padrão esperado
+            const segments = url.split('/');
+            const lastSegment = segments.pop() || 'Link de Mídia';
+            const queryParamIndex = lastSegment.indexOf('?');
+            return queryParamIndex !== -1 ? lastSegment.substring(0, queryParamIndex) : lastSegment;
         }
     })();
 
@@ -415,7 +461,7 @@ export default function InvestigationsPage() {
         <div className="flex items-center space-x-2">
           <AlertTriangle className="h-5 w-5 text-yellow-500" />
           <p className="text-sm text-muted-foreground">
-            <strong>Nota:</strong> Uploads de mídia agora são feitos diretamente do seu navegador para o Supabase Storage. Certifique-se de que suas políticas do bucket 'investigationmedia' permitem INSERT e SELECT públicos (ou para 'authenticated' se aplicável).
+            <strong>Nota:</strong> Uploads de mídia agora são feitos diretamente do seu navegador para o Supabase Storage. Certifique-se de que suas políticas do bucket 'investigationmedia' permitem INSERT e SELECT públicos (ou para 'authenticated' se aplicável e o bucket for público).
           </p>
         </div>
       </Card>
@@ -663,3 +709,4 @@ export default function InvestigationsPage() {
   );
 }
 
+    

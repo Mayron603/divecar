@@ -21,7 +21,6 @@ const formatSupabaseError = (error: any, functionName: string): { message: strin
   
   console.error(`[SupabaseService][${functionName}] === ERROR DETAILS ===`);
   console.error(`[SupabaseService][${functionName}] Original error type: ${typeof error}.`);
-  // Avoid excessively long stringified errors if they are too complex or circular
   try {
     const errorString = JSON.stringify(error, Object.getOwnPropertyNames(error));
     console.error(`[SupabaseService][${functionName}] Original error (stringified, partial if too long): ${errorString.substring(0, 1000)}${errorString.length > 1000 ? '...' : ''}`);
@@ -56,10 +55,11 @@ const formatSupabaseError = (error: any, functionName: string): { message: strin
   
   let finalMessage = String(message).trim() || `An unexpected error occurred in ${functionName}. Check server logs.`;
 
-  // Suggest RLS check for "not found" type errors
   const lowerCaseMessage = finalMessage.toLowerCase();
   const lowerCaseDetails = (error?.details || '').toLowerCase();
-  if (lowerCaseMessage.includes("0 rows") || lowerCaseDetails.includes("0 rows") || lowerCaseMessage.includes("not found") || lowerCaseDetails.includes("not found")) {
+  const isNotFoundError = lowerCaseMessage.includes("0 rows") || lowerCaseDetails.includes("0 rows") || lowerCaseMessage.includes("not found") || lowerCaseDetails.includes("not found");
+
+  if (isNotFoundError) {
     finalMessage += " This often indicates the record was not found (possibly due to RLS policies or it was already deleted). Please check Row Level Security policies for SELECT and UPDATE on the table.";
   }
   
@@ -175,6 +175,7 @@ export async function updateInvestigation(id: string, updates: Partial<Omit<Inve
   const functionName = "updateInvestigation";
   console.log(`[SupabaseService][${functionName}] Called for id: ${id}`);
   console.log(`[SupabaseService][${functionName}] Raw updates payload received by server action:`, JSON.stringify(updates, null, 2));
+  console.log(`[SupabaseService][${functionName}] Received mediaUrls for update:`, updates.mediaUrls);
   try {
     const cookieStore = cookies();
     const supabase = createSupabaseServerClient(cookieStore);
@@ -228,16 +229,6 @@ export async function updateInvestigation(id: string, updates: Partial<Omit<Inve
 
     if (error || !data) {
       console.error(`[SupabaseService][${functionName}] Error updating investigation ${id} in database. Error object:`, error);
-      const specificErrorMessage = (error as any)?.message?.toLowerCase().includes("0 rows") || (error as any)?.details?.toLowerCase().includes("0 rows")
-        ? `Investigation record with ID ${id} not found for update. It might have been deleted.`
-        : null;
-
-      if (specificErrorMessage) {
-        console.error(`[SupabaseService][${functionName}] Specific error detected: ${specificErrorMessage}`);
-        // Ensure formatSupabaseError is called to provide RLS hint
-        const { message: formattedMsg } = formatSupabaseError(error || new Error(specificErrorMessage), `${functionName} - DB update (not found)`);
-        return { success: false, error: formattedMsg };
-      }
       const { message: formattedMessage } = formatSupabaseError(error || new Error('No data returned from update operation.'), `${functionName} - DB update`);
       return { success: false, error: formattedMessage };
     }
@@ -305,7 +296,7 @@ export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string
 }
 
 
-// OBSOLETE - Client-side uploads are now preferred
+// OBSOLETE - Client-side uploads are now preferred. Kept for reference or if server-side upload is needed later.
 export async function OBSOLETE_uploadFileToServerAction(formData: FormData): Promise<ServiceResponse<{ urls: string[] }>> {
   const functionName = "OBSOLETE_uploadFileToServerAction";
   console.log(`[SupabaseStorageService][${functionName}] === SERVER ACTION ENTRY POINT ===`);
@@ -335,7 +326,12 @@ export async function OBSOLETE_uploadFileToServerAction(formData: FormData): Pro
     if (rawFiles && rawFiles.length > 0 && rawFiles[0] instanceof File) {
         loggableRawFilesInfo = rawFiles.map((f, index) => f instanceof File ? `File ${index}: ${f.name} (${f.size} bytes, type: ${f.type})` : `Item at index ${index} is not a File`).join(', ');
     }
-    console.log(`[SupabaseStorageService][${functionName}] Raw FormData content - investigationId type: ${typeof rawInvestigationId}, value: '${rawInvestigationId}', rawFiles count: ${rawFiles.length}, rawFiles info: [${loggableRawFilesInfo}]`);
+    const filesDetailsForLog = rawFiles.map((f, index) => {
+        if (f instanceof File) return { name: f.name, size: f.size, type: f.type, index };
+        return { type: typeof f, index };
+    });
+
+    console.log(`[SupabaseStorageService][${functionName}] Raw FormData content - investigationId type: ${typeof rawInvestigationId}, value: '${rawInvestigationId}', rawFiles count: ${rawFiles.length}, filesDetails:`, JSON.stringify(filesDetailsForLog));
 
 
     if (rawInvestigationId instanceof File) {
@@ -360,6 +356,7 @@ export async function OBSOLETE_uploadFileToServerAction(formData: FormData): Pro
     const filesDetails = files.map((f, index) => ({ name: f.name, size: f.size, type: f.type, index }));
     const parsedInfo = {
         investigationIdReceived: typeof investigationId,
+        mediaFilesReceivedCount: rawFiles.length,
         parsedInvestigationId: investigationId,
         validFilesCount: files.length,
         filesDetails: filesDetails
@@ -399,6 +396,8 @@ export async function OBSOLETE_uploadFileToServerAction(formData: FormData): Pro
       if (uploadError) {
         console.error(`[SupabaseStorageService][${functionName}] Supabase storage.upload error for ${filePath}.`);
         const { message: formattedMessage } = formatSupabaseError(uploadError, `${functionName} - Supabase .upload for ${filePath}`);
+        // Do not return immediately, try other files if possible, or decide on error strategy
+        // For now, let's assume we stop on first error for simplicity of response
         return { success: false, error: `Upload error for ${file.name}: ${formattedMessage}` };
       }
 

@@ -17,16 +17,16 @@ import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClo
 import { useToast } from '@/hooks/use-toast';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
 import {
-  addInvestigation, // Will be used for initial record creation
+  addInvestigation,
   getInvestigations,
-  updateInvestigation, // Will be used for final update with media URLs and general edits
+  updateInvestigation,
   deleteInvestigation,
   deleteFileFromSupabaseStorageUrl,
-  // OBSOLETE_uploadFileToServerAction, // No longer using this for primary upload
+  // OBSOLETE_uploadFileToServerAction, 
 } from '@/lib/supabase/investigationService';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client'; // For client-side uploads
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import NextImage from 'next/image'; // Renamed to avoid conflict with Lucide Icon
+import NextImage from 'next/image';
 
 const INVESTIGATION_MEDIA_BUCKET = 'investigationmedia';
 
@@ -37,7 +37,7 @@ export default function InvestigationsPage() {
   const [editingInvestigation, setEditingInvestigation] = useState<Investigation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false); // For client-side upload progress
+  const [isUploading, setIsUploading] = useState(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -48,7 +48,6 @@ export default function InvestigationsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>([]);
   
-  // Supabase client for browser operations
   const supabaseBrowserClient: SupabaseClient = createSupabaseBrowserClient();
 
 
@@ -114,7 +113,6 @@ export default function InvestigationsPage() {
     let roNumber = editingInvestigation?.roNumber;
 
     try {
-      // Step 1: Create or identify the investigation record ID
       if (!editingInvestigation) {
         console.log("[InvestigationsPage] Creating new initial investigation record...");
         const initialPayload = {
@@ -125,7 +123,7 @@ export default function InvestigationsPage() {
             occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
         };
         const addResponse = await addInvestigation(initialPayload);
-        console.log("[InvestigationsPage] Response from addInvestigation (initial) server action:", addResponse);
+        console.log("[InvestigationsPage] Response from addInvestigation server action:", addResponse);
 
         if (!addResponse.success || !addResponse.data?.id) {
             toast({
@@ -138,11 +136,12 @@ export default function InvestigationsPage() {
         }
         currentInvestigationId = addResponse.data.id;
         roNumber = addResponse.data.roNumber;
-        console.log(`[InvestigationsPage] Initial investigation record created. ID: ${currentInvestigationId}, R.O.: ${roNumber}`);
+        console.log(`[InvestigationsPage] Initial investigation record created successfully. ID: ${currentInvestigationId}, R.O.: ${roNumber}`);
         toast({ title: "Registro Base Criado", description: `R.O. ${roNumber} iniciado. Processando mídias se houver...` });
       } else {
-        currentInvestigationId = editingInvestigation.id; // Already have ID for editing
-         console.log(`[InvestigationsPage] Editing existing investigation. ID: ${currentInvestigationId}`);
+        currentInvestigationId = editingInvestigation.id;
+         console.log(`[InvestigationsPage] Editing existing investigation. ID: ${currentInvestigationId}, Existing media URLs:`, existingMediaUrls);
+         finalMediaUrls = [...existingMediaUrls]; // Ensure finalMediaUrls starts with existing ones when editing
       }
 
       if (!currentInvestigationId) {
@@ -151,7 +150,6 @@ export default function InvestigationsPage() {
         return;
       }
       
-      // Step 2: Upload new files directly from client if any
       if (selectedFiles && selectedFiles.length > 0) {
         setIsUploading(true);
         toast({ title: "Upload de Mídia", description: `Enviando ${selectedFiles.length} arquivo(s)...` });
@@ -177,8 +175,6 @@ export default function InvestigationsPage() {
               title: `Erro no Upload de ${file.name}`,
               description: uploadError.message || "Não foi possível carregar esta mídia.",
             });
-            // Decide if you want to stop all uploads on first error or continue
-            // For now, let's stop.
             setIsUploading(false);
             setIsSubmitting(false);
             return; 
@@ -205,7 +201,8 @@ export default function InvestigationsPage() {
         }
       }
 
-      // Step 3: Update the investigation record with all metadata and final media URLs
+      console.log(`[InvestigationsPage] Final media URLs to be saved for ID ${currentInvestigationId}:`, finalMediaUrls);
+
       const investigationPayload: Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>> = {
         title,
         description,
@@ -230,7 +227,7 @@ export default function InvestigationsPage() {
         toast({ title: editingInvestigation ? "Investigação Atualizada" : "Investigação Salva", description: `R.O. ${roNumber || updateOpResponse.data.roNumber} "${investigationPayload.title}" foi salva com sucesso.` });
         setShowForm(false);
         resetForm();
-        fetchInvestigations(); // Re-fetch to show the new/updated item
+        fetchInvestigations();
       }
 
     } catch (error: any) {
@@ -255,6 +252,7 @@ export default function InvestigationsPage() {
     setStatus(investigation.status);
     setOccurrenceDate(investigation.occurrenceDate ? new Date(investigation.occurrenceDate) : undefined);
     setExistingMediaUrls(investigation.mediaUrls || []);
+    console.log("[InvestigationsPage] Editing. Existing media URLs loaded into form state:", investigation.mediaUrls);
     setShowForm(true);
   };
 
@@ -276,9 +274,8 @@ export default function InvestigationsPage() {
       }
 
       const updatedMediaUrls = existingMediaUrls.filter(url => url !== mediaUrlToDelete);
-      setExistingMediaUrls(updatedMediaUrls); // Update client state immediately
+      setExistingMediaUrls(updatedMediaUrls); 
 
-      // Update the record in the database
       const updatePayload = { mediaUrls: updatedMediaUrls };
       console.log(`[InvestigationsPage] Updating investigation record ${editingInvestigation.id} after media deletion. New mediaUrls:`, updatedMediaUrls);
       const recordUpdateResponse = await updateInvestigation(editingInvestigation.id, updatePayload);
@@ -288,13 +285,11 @@ export default function InvestigationsPage() {
         toast({ variant: "destructive", title: "Erro ao Atualizar Investigação", description: recordUpdateResponse.error || "Não foi possível atualizar o registro após remover a mídia." });
       } else {
         toast({ title: "Mídia Removida", description: "O arquivo e sua referência foram removidos." });
-        // Update the main investigations list if successful
         setInvestigations(prevInvestigations => 
             prevInvestigations.map(inv => 
                 inv.id === editingInvestigation.id ? { ...inv, mediaUrls: updatedMediaUrls } : inv
             )
         );
-        // Update editingInvestigation state if still in edit mode
         setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
       }
 
@@ -391,10 +386,10 @@ export default function InvestigationsPage() {
         </div>
       );
     }
-    // Fallback for other file types or if type detection fails
     const fileName = (() => {
         try {
-            return new URL(url).pathname.split('/').pop() || 'Link de Mídia';
+            const decodedUrl = decodeURIComponent(url);
+            return new URL(decodedUrl).pathname.split('/').pop() || 'Link de Mídia';
         } catch {
             return 'Link de Mídia';
         }
@@ -420,7 +415,7 @@ export default function InvestigationsPage() {
         <div className="flex items-center space-x-2">
           <AlertTriangle className="h-5 w-5 text-yellow-500" />
           <p className="text-sm text-muted-foreground">
-            <strong>Nota:</strong> Uploads de mídia agora são feitos diretamente do seu navegador para o Supabase Storage. Certifique-se de que suas políticas do bucket 'investigationmedia' permitem INSERT para 'anon' (ou 'authenticated' se aplicável).
+            <strong>Nota:</strong> Uploads de mídia agora são feitos diretamente do seu navegador para o Supabase Storage. Certifique-se de que suas políticas do bucket 'investigationmedia' permitem INSERT e SELECT públicos (ou para 'authenticated' se aplicável).
           </p>
         </div>
       </Card>
@@ -667,3 +662,4 @@ export default function InvestigationsPage() {
     </div>
   );
 }
+

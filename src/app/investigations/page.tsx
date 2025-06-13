@@ -21,6 +21,7 @@ import {
   updateInvestigation,
   deleteInvestigation,
   deleteFileFromSupabaseStorageUrl,
+  getInvestigations, // Adicionada a importação que faltava
 } from '@/lib/supabase/investigationService';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -33,8 +34,21 @@ const getErrorMessage = (error: any): string => {
   if (!error) return "Ocorreu um erro desconhecido.";
   if (typeof error === 'string') return error;
   if (error instanceof Error) return error.message;
-  if (typeof error === 'object') {
-    return error.message || error.error_description || error.error || JSON.stringify(error);
+  if (typeof error === 'object' && error !== null) {
+    // Attempt to get specific Supabase error properties
+    const supabaseError = error as { message?: string; details?: string; hint?: string; error_description?: string, error?: string, code?: string, status?: number, name?: string };
+    if (supabaseError.message) return supabaseError.message;
+    if (supabaseError.error_description) return supabaseError.error_description;
+    if (supabaseError.error && typeof supabaseError.error === 'string') return supabaseError.error;
+    if (supabaseError.name && supabaseError.status) return `${supabaseError.name} (Status: ${supabaseError.status})`; // e.g. StorageApiError (Status: 404)
+    // Fallback to stringifying the object if no common properties are found
+    try {
+      const stringifiedError = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      if (stringifiedError !== '{}') return stringifiedError;
+    } catch (e) {
+      // Ignore stringify error
+    }
+    return "Não foi possível carregar esta mídia. Verifique o console para detalhes.";
   }
   return "Não foi possível carregar esta mídia. Verifique o console para detalhes.";
 };
@@ -167,47 +181,36 @@ export default function InvestigationsPage() {
 
         for (let i = 0; i < selectedFiles.length; i++) {
           const file = selectedFiles[i];
-          const sanitizedFileName = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '');
-          const fileNameWithTimestamp = `${Date.now()}_${sanitizedFileName}`;
+          // Sanitize file name: replace spaces with underscores, remove most non-alphanumeric chars except . - _
+          const sanitizedFileNameBase = file.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_.-]/g, '');
+          const fileNameWithTimestamp = `${Date.now()}_${sanitizedFileNameBase}`;
           const filePath = `${currentInvestigationId}/${fileNameWithTimestamp}`;
 
-          console.log(`[InvestigationsPage] Client-side upload: Attempting to upload ${file.name} (sanitized: ${fileNameWithTimestamp}) to path: ${filePath} in bucket ${INVESTIGATION_MEDIA_BUCKET}`);
+          console.log(`[InvestigationsPage] Client-side upload: Attempting to upload ${file.name} (sanitized path: ${filePath}) to bucket ${INVESTIGATION_MEDIA_BUCKET}`);
           
           const { data: uploadData, error: uploadError } = await supabaseBrowserClient.storage
             .from(INVESTIGATION_MEDIA_BUCKET)
             .upload(filePath, file, {
               cacheControl: '3600',
-              upsert: false, // Consider true if re-uploading the same file path should overwrite
+              upsert: false,
             });
 
           if (uploadError) {
-            console.error(`[InvestigationsPage] Client-side upload error for ${file.name}. Raw error object:`, uploadError);
-            let detailedError = 'Unknown upload error.';
-            if (uploadError instanceof Error) {
-                detailedError = uploadError.message;
-            } else if (typeof uploadError === 'object' && uploadError !== null) {
-                const supabaseError = uploadError as any;
-                detailedError = supabaseError.message || supabaseError.error_description || supabaseError.error || JSON.stringify(uploadError);
-                console.error(`[InvestigationsPage] Client-side upload error for ${file.name} (Stringified Object):`, JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError)));
-            } else if (typeof uploadError === 'string') {
-                detailedError = uploadError;
-            }
-            console.error(`[InvestigationsPage] Client-side upload error for ${file.name} (Full Object passed to console):`, uploadError);
-
+            console.error(`[InvestigationsPage] Client-side upload error for ${file.name}:`, uploadError);
+            let detailedError = getErrorMessage(uploadError);
+            console.error(`[InvestigationsPage] Client-side upload error for ${file.name} (extracted message): "${detailedError}"`);
+            console.error(`[InvestigationsPage] Client-side upload error for ${file.name} (stringified):`, JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError)));
 
             toast({
               variant: "destructive",
               title: `Erro no Upload de ${file.name}`,
               description: detailedError,
             });
+            // Don't set isUploading/isSubmitting to false here if you want to allow other files to attempt upload
+            // For now, let's stop the entire submission if one file fails.
             setIsUploading(false);
             setIsSubmitting(false);
-            // Do not return immediately; allow other files to be attempted or proceed to save metadata without this file.
-            // Consider how to handle partial success if some files upload and others don't.
-            // For now, if one fails, we stop this particular upload attempt for this file and continue the loop.
-            // If the whole process should stop, uncomment the return below.
-            // return; 
-            continue; // Skip to the next file if one fails
+            return; 
           }
 
           if (uploadData?.path) {
@@ -321,7 +324,6 @@ export default function InvestigationsPage() {
                 inv.id === editingInvestigation.id ? { ...inv, mediaUrls: updatedMediaUrls } : inv
             )
         );
-        // Also update the editingInvestigation state to reflect the removed media URL
         setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
       }
 
@@ -421,19 +423,13 @@ export default function InvestigationsPage() {
     const fileName = (() => {
         try {
             const decodedUrl = decodeURIComponent(url);
-            // Extrai o nome do arquivo da URL, lidando com possíveis query strings
             let path = new URL(decodedUrl).pathname;
-            // Remove a parte do bucket se presente no início do path
              if (path.startsWith(`/storage/v1/object/public/${INVESTIGATION_MEDIA_BUCKET}/`)) {
                 path = path.substring(`/storage/v1/object/public/${INVESTIGATION_MEDIA_BUCKET}/`.length);
             }
-            // Remove o ID da investigação e a timestamp se o padrão for conhecido
-            // Ex: eeee1f76-f1c8-4089-8cad-f3bd76675949/1749846686810_image_optimized_1.png
-            // Tentativa de remover o UUID/ e a timestamp_
             const nameWithoutPrefix = path.replace(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/\d+_/, '');
             return nameWithoutPrefix || path.split('/').pop() || 'Link de Mídia';
         } catch {
-            // Fallback se a URL for malformada ou não seguir o padrão esperado
             const segments = url.split('/');
             const lastSegment = segments.pop() || 'Link de Mídia';
             const queryParamIndex = lastSegment.indexOf('?');

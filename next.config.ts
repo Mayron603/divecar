@@ -17,10 +17,16 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'hfjpzzlwgpgyqzpsokcc.supabase.co',
+        port: '',
+        pathname: '/**', // Permite qualquer caminho dentro deste hostname
+      },
     ],
   },
   serverActions: {
-    bodySizeLimit: '10mb', // Aumentado para 10MB
+    bodySizeLimit: '10mb',
   },
 };
 

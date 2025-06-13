@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -17,6 +18,9 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  serverActions: {
+    bodySizeLimit: '4mb', // Aumentado para 4MB, ajuste conforme necessário
   },
 };
 

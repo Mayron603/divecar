@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 
-const SUSPICIOUS_VEHICLE_PHOTOS_BUCKET = 'suspicious_vehicle_photos';
+const SUSPICIOUS_VEHICLE_PHOTOS_BUCKET = 'suspiciousvehiclephotos'; // Updated bucket name
 const PASSWORD_FOR_CREATE_SUSPICIOUS = "suspeito_criar123";
 const PASSWORD_FOR_DELETE_SUSPICIOUS = "suspeito_apagar789";
 
@@ -213,7 +213,7 @@ export default function SuspiciousVehiclesPage() {
             finalPhotoUrl = publicUrlData.publicUrl;
             if (editingVehicle && editingVehicle.photoUrl && editingVehicle.photoUrl !== finalPhotoUrl) {
                 console.log(`[SuspiciousVehiclesPage] New photo uploaded for editing vehicle. Deleting old photo: ${editingVehicle.photoUrl}`);
-                await deleteFileFromSupabaseStorageUrl(editingVehicle.photoUrl, SUSPICIOUS_VEHICLE_PHOTOS_BUCKET);
+                await deleteFileFromSupabaseStorageUrl(editingVehicle.photoUrl); // Removed bucket name, service handles it
             }
           } else {
             console.error(`[SuspiciousVehiclesPage] Client-side upload: Failed to get public URL for ${uploadData.path}`);
@@ -221,7 +221,7 @@ export default function SuspiciousVehiclesPage() {
           }
         }
         setIsUploading(false);
-        if (finalPhotoUrl && selectedPhoto) { // Check selectedPhoto to ensure this toast is for a new upload
+        if (finalPhotoUrl && selectedPhoto) { 
             toast({ title: "Foto Enviada", description: "Foto processada com sucesso."});
         }
       }
@@ -294,7 +294,7 @@ export default function SuspiciousVehiclesPage() {
     setIsSubmitting(true); 
     try {
       console.log(`[SuspiciousVehiclesPage] Calling deleteFileFromSupabaseStorageUrl for URL: ${existingPhotoUrl}`);
-      const deleteResponse = await deleteFileFromSupabaseStorageUrl(existingPhotoUrl, SUSPICIOUS_VEHICLE_PHOTOS_BUCKET);
+      const deleteResponse = await deleteFileFromSupabaseStorageUrl(existingPhotoUrl); // Removed bucket name
       console.log("[SuspiciousVehiclesPage] Response from deleteFileFromSupabaseStorageUrl server action:", deleteResponse);
 
       if (!deleteResponse.success) {

@@ -16,14 +16,16 @@ import { ptBR } from "date-fns/locale";
 import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClock, ListChecks, Loader2, CalendarIcon, Link as LinkIcon, AlertTriangle, FileUp, Image as ImageIcon, VideoIcon, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
-import { addInvestigation, getInvestigations, updateInvestigation, deleteInvestigation } from '@/lib/firebase/firestoreService';
-import { uploadFileToStorage, deleteFileFromStorage } from '@/lib/firebase/storageService';
+import { 
+  addInvestigation, 
+  getInvestigations, 
+  updateInvestigation, 
+  deleteInvestigation,
+  uploadFileToSupabaseStorage,
+  deleteFileFromSupabaseStorageUrl
+} from '@/lib/supabase/investigationService'; // Updated to Supabase service
 import Image from 'next/image';
-import { doc, collection } from 'firebase/firestore'; // For generating client-side ID
-import { getFirestore } from 'firebase/firestore';
-import { app } from '@/lib/firebase/config';
-
-const db = getFirestore(app); // Needed for generating ID
+// Removed Firebase specific imports: doc, collection, getFirestore, app from firebase/config
 
 export default function InvestigationsPage() {
   const { toast } = useToast();
@@ -53,9 +55,9 @@ export default function InvestigationsPage() {
       toast({
         variant: "destructive",
         title: "Erro ao Carregar Investigações",
-        description: "Não foi possível buscar os dados do Firestore. Verifique sua configuração e regras de segurança.",
+        description: "Não foi possível buscar os dados do Supabase. Verifique sua configuração e políticas RLS.",
       });
-      console.error("Error fetching investigations:", error);
+      console.error("Error fetching investigations from Supabase:", error);
     } finally {
       setIsLoading(false);
     }
@@ -97,32 +99,67 @@ export default function InvestigationsPage() {
     }
 
     setIsSubmitting(true);
-
-    let uploadedMediaUrls: string[] = [...existingMediaUrls];
     
-    // Determine the ID to be used for the investigation (for storage path consistency)
-    // If editing, use existing ID. If new, generate one client-side for storage path.
-    // The actual addInvestigation will use this ID if it's new.
-    const investigationIdForPath = editingInvestigation?.id || doc(collection(db, 'investigations')).id;
+    let currentInvestigationId = editingInvestigation?.id;
+    let finalMediaUrls: string[] = [...existingMediaUrls];
+
+    // Step 1: Create/Update base investigation record (if new, to get an ID for storage paths)
+    // For Supabase, we might create the record first, then upload, then update record with URLs.
+    // Or, if editing, we already have an ID.
+    
+    // If it's a new investigation, create the base record first to get an ID
+    if (!editingInvestigation) {
+        try {
+            const initialPayload: Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber' | 'mediaUrls'> & { mediaUrls?: string[] } = {
+                title,
+                description,
+                assignedInvestigator,
+                status,
+                occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
+                mediaUrls: [], // Will be updated after upload
+            };
+            // The service will generate roNumber and handle created_at
+            const newInvestigationBase = await addInvestigation(initialPayload);
+            currentInvestigationId = newInvestigationBase.id;
+             // Update the editingInvestigation state for subsequent operations if needed
+            setEditingInvestigation(newInvestigationBase); 
+            toast({ title: "Registro Base Criado", description: `R.O. ${newInvestigationBase.roNumber} iniciado.` });
+        } catch (error: any) {
+            console.error("Error creating initial investigation record with Supabase:", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao Iniciar Investigação",
+                description: error.message || "Não foi possível criar o registro base da investigação.",
+            });
+            setIsSubmitting(false);
+            return;
+        }
+    }
+    
+    if (!currentInvestigationId) {
+        console.error("Critical error: Investigation ID is missing for file upload step.");
+        toast({ variant: "destructive", title: "Erro Crítico", description: "ID da investigação não encontrado." });
+        setIsSubmitting(false);
+        return;
+    }
 
 
+    // Step 2: Upload new files if any
     if (selectedFiles && selectedFiles.length > 0) {
       setIsUploading(true);
-      const uploadPromises = Array.from(selectedFiles).map(file => {
-        // Use a consistent ID for the path, even for new investigations
-        const filePath = `investigations/${investigationIdForPath}/${Date.now()}_${file.name}`;
-        return uploadFileToStorage(file, filePath);
-      });
+      const uploadPromises = Array.from(selectedFiles).map(file => 
+        uploadFileToSupabaseStorage(file, currentInvestigationId!) // Pass currentInvestigationId
+      );
 
       try {
-        const urls = await Promise.all(uploadPromises);
-        uploadedMediaUrls = [...uploadedMediaUrls, ...urls];
+        const uploadedUrls = await Promise.all(uploadPromises);
+        finalMediaUrls = [...finalMediaUrls, ...uploadedUrls];
       } catch (error: any) {
-        console.error("Error during file upload process in handleSubmit:", error);
+        console.error("Error during file upload process to Supabase Storage:", error);
         toast({
           variant: "destructive",
           title: "Erro no Upload de Mídia",
-          description: error.message || "Não foi possível carregar uma ou mais mídias. Verifique o console para detalhes e suas regras do Firebase Storage.",
+          description: error.message || "Não foi possível carregar uma ou mais mídias. Verifique o console e suas políticas do Supabase Storage.",
         });
         setIsUploading(false);
         setIsSubmitting(false); 
@@ -132,34 +169,40 @@ export default function InvestigationsPage() {
       }
     }
 
-    const investigationPayload: Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber'> & { id?: string } = {
+    // Step 3: Prepare final payload and update/create investigation record with all data
+    const investigationPayload: Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>> = {
       title,
       description,
       assignedInvestigator,
       status,
       occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
-      mediaUrls: uploadedMediaUrls,
+      mediaUrls: finalMediaUrls,
     };
 
-
     try {
-      if (editingInvestigation) {
-        await updateInvestigation(editingInvestigation.id, investigationPayload as Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>>);
+      if (editingInvestigation || currentInvestigationId) { // Should always have currentInvestigationId if new and step 1 succeeded
+        await updateInvestigation(currentInvestigationId!, investigationPayload);
         toast({ title: "Investigação Atualizada", description: `"${investigationPayload.title}" foi atualizada.` });
       } else {
-        // If it's a new investigation, we pass the pre-generated ID for consistency with storage path
-        await addInvestigation(investigationPayload, investigationIdForPath);
+        // This case should ideally not be hit if step 1 for new investigations is done correctly.
+        // The addInvestigation in the service handles RO number.
+        // For safety, but this implies the above logic for new investigations needs refinement.
+        console.error("Attempting to add new investigation at final step, this might be an issue.");
+        const finalAddPayload: Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber'> = {
+            ...investigationPayload
+        } as Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber'>; // Type assertion
+        await addInvestigation(finalAddPayload);
         toast({ title: "Investigação Adicionada", description: `"${investigationPayload.title}" foi criada.` });
       }
       setShowForm(false);
       resetForm();
       fetchInvestigations();
-    } catch (error) {
-      console.error("Error saving investigation to Firestore:", error);
+    } catch (error: any) {
+      console.error("Error saving investigation to Supabase:", error);
       toast({
         variant: "destructive",
         title: "Erro ao Salvar Investigação",
-        description: "Não foi possível salvar a investigação no Firestore. Verifique o console.",
+        description: error.message || "Não foi possível salvar a investigação no Supabase. Verifique o console.",
       });
     } finally {
       setIsSubmitting(false);
@@ -181,76 +224,34 @@ export default function InvestigationsPage() {
     setShowForm(true);
   };
 
-  const getPathFromUrl = (url: string) => {
-    try {
-      const urlObject = new URL(url);
-      const pathWithQuery = urlObject.pathname.split('/o/')[1];
-      if (pathWithQuery) {
-        return decodeURIComponent(pathWithQuery.split('?')[0]);
-      }
-    } catch (e) {
-      console.error("Error parsing URL for path:", url, e);
-    }
-    return null;
-  };
-
-
-  const handleDeleteMedia = async (mediaUrlToDelete: string, investigationId: string) => {
-    if (!editingInvestigation || editingInvestigation.id !== investigationId) {
-        console.warn("Attempted to delete media for a non-editing or mismatched investigation.");
+  const handleDeleteMedia = async (mediaUrlToDelete: string) => {
+    if (!editingInvestigation) {
+        console.warn("Attempted to delete media for a non-editing investigation.");
         return;
     }
 
     setIsSubmitting(true); 
-    const filePath = getPathFromUrl(mediaUrlToDelete);
-    let storageDeleteSuccess = true;
-
-    if (filePath) {
-      try {
-        await deleteFileFromStorage(filePath);
-      } catch (error) {
-        storageDeleteSuccess = false;
-        console.error("Error deleting file from storage:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro ao Remover Mídia do Storage",
-          description: "Não foi possível remover o arquivo do armazenamento. A referência será removida da investigação.",
-        });
-      }
-    } else {
-       toast({
-          variant: "warning",
-          title: "Não foi possível identificar o arquivo no Storage",
-          description: "A referência será removida da investigação, mas o arquivo pode permanecer no armazenamento.",
-        });
-    }
-
-    const updatedMediaUrls = existingMediaUrls.filter(url => url !== mediaUrlToDelete);
-    setExistingMediaUrls(updatedMediaUrls); 
-
+    
     try {
-        const investigationDataToUpdate = {
-            ...editingInvestigation,
-            mediaUrls: updatedMediaUrls,
-        };
-        const { id, creationDate, roNumber, ...updatePayload } = investigationDataToUpdate;
+      await deleteFileFromSupabaseStorageUrl(mediaUrlToDelete); // Use new Supabase specific delete
+      
+      const updatedMediaUrls = existingMediaUrls.filter(url => url !== mediaUrlToDelete);
+      setExistingMediaUrls(updatedMediaUrls); 
 
-        await updateInvestigation(investigationId, updatePayload as Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>>);
-        
-        if (storageDeleteSuccess && filePath) {
-            toast({ title: "Mídia Removida", description: "O arquivo e sua referência foram removidos." });
-        } else {
-            toast({ title: "Referência de Mídia Removida", description: "A referência da mídia foi removida da investigação." });
-        }
-        // No need to fetchInvestigations() here if only mediaUrls in editingInvestigation is updated,
-        // as the main list isn't directly affected by this sub-operation.
-        // It will be updated when "Salvar Alterações" is clicked.
-    } catch (error) {
-        console.error("Error updating investigation after media deletion:", error);
+      // Update the investigation record in Supabase without the deleted media URL
+      const updatePayload = { mediaUrls: updatedMediaUrls };
+      await updateInvestigation(editingInvestigation.id, updatePayload);
+      
+      toast({ title: "Mídia Removida", description: "O arquivo e sua referência foram removidos." });
+      // To reflect change immediately on the form (if open)
+      setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
+
+    } catch (error: any) {
+        console.error("Error deleting media from Supabase or updating record:", error);
         toast({
           variant: "destructive",
-          title: "Erro ao Atualizar Investigação",
-          description: "Não foi possível atualizar a investigação após remover a mídia.",
+          title: "Erro ao Remover Mídia",
+          description: error.message || "Não foi possível remover a mídia. Verifique o console.",
         });
     } finally {
         setIsSubmitting(false);
@@ -260,34 +261,18 @@ export default function InvestigationsPage() {
 
   const handleDeleteInvestigation = async (investigation: Investigation) => {
     setIsSubmitting(true);
-    if (investigation.mediaUrls && investigation.mediaUrls.length > 0) {
-      toast({ title: "Removendo Mídias...", description: "Aguarde enquanto os arquivos associados são removidos do storage."});
-      const deletePromises = investigation.mediaUrls.map(url => {
-        const filePath = getPathFromUrl(url);
-        if (filePath) {
-          return deleteFileFromStorage(filePath).catch(err => {
-            console.error(`Failed to delete ${filePath} from storage during investigation deletion:`, err);
-          });
-        }
-        return Promise.resolve();
-      });
-      try {
-        await Promise.all(deletePromises);
-      } catch (error) {
-         console.warn("Some files might not have been deleted from storage during investigation deletion.");
-      }
-    }
-
+    
     try {
-      await deleteInvestigation(investigation.id);
+      // The deleteInvestigation service function now handles deleting from storage too
+      await deleteInvestigation(investigation.id, investigation.mediaUrls);
       toast({ title: "Investigação Removida", description: `"${investigation.title}" e suas mídias associadas foram removidas.`, variant: "default" });
       fetchInvestigations(); 
-    } catch (error) {
-      console.error("Error deleting investigation from Firestore:", error);
+    } catch (error: any) {
+      console.error("Error deleting investigation from Supabase:", error);
       toast({
         variant: "destructive",
         title: "Erro ao Remover Investigação",
-        description: "Não foi possível remover a investigação do Firestore.",
+        description: error.message || "Não foi possível remover a investigação do Supabase.",
       });
     } finally {
       setIsSubmitting(false);
@@ -320,8 +305,8 @@ export default function InvestigationsPage() {
   };
 
   const renderMedia = (url: string) => {
-    const isImage = /\.(jpeg|jpg|gif|png|webp)$/i.test(url.split('?')[0]);
-    const isVideo = /\.(mp4|webm|ogg|mov)$/i.test(url.split('?')[0]); // Added mov
+    const isImage = /\.(jpeg|jpg|gif|png|webp)(\?|$)/i.test(url);
+    const isVideo = /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url); 
 
     if (isImage) {
       return (
@@ -348,7 +333,7 @@ export default function InvestigationsPage() {
     }
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline break-all flex items-center p-2 bg-slate-50 rounded shadow-sm">
-        <LinkIcon className="h-4 w-4 mr-1.5 shrink-0" /> {url.substring(url.lastIndexOf('/') + 1).split('?')[0].substring(0,30)}...
+        <LinkIcon className="h-4 w-4 mr-1.5 shrink-0" /> {new URL(url).pathname.split('/').pop()?.substring(0,30) || 'Link de Mídia'}...
       </a>
     );
   };
@@ -357,8 +342,8 @@ export default function InvestigationsPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Gerenciamento de Investigações"
-        description="Adicione, visualize e gerencie as investigações da DIVECAR Osasco."
+        title="Gerenciamento de Investigações (Supabase)"
+        description="Adicione, visualize e gerencie as investigações da DIVECAR Osasco com Supabase."
         icon={FolderSearch}
       />
       
@@ -366,7 +351,7 @@ export default function InvestigationsPage() {
         <div className="flex items-center space-x-2">
           <AlertTriangle className="h-5 w-5 text-yellow-500" />
           <p className="text-sm text-muted-foreground">
-            <strong>Nota:</strong> O número de R.O. é gerado automaticamente. Configure as regras de segurança do Firebase Storage para permitir uploads e leituras.
+            <strong>Nota:</strong> Certifique-se de que seu projeto Supabase está configurado com a tabela 'investigations', o bucket 'investigation_media', e as políticas RLS/Storage adequadas. O R.O. é gerado com base na contagem atual (veja console para aviso sobre concorrência).
           </p>
         </div>
       </Card>
@@ -428,7 +413,7 @@ export default function InvestigationsPage() {
                       onSelect={setOccurrenceDate}
                       initialFocus
                       locale={ptBR}
-                      disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                      disabled={(date) => date > new Date() || date < new Date("1900-01-01") || isSubmitting}
                     />
                   </PopoverContent>
                 </Popover>
@@ -501,7 +486,7 @@ export default function InvestigationsPage() {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive hover:bg-destructive/10 p-1 h-auto ml-2 flex-shrink-0"
-                          onClick={() => handleDeleteMedia(url, editingInvestigation.id)}
+                          onClick={() => handleDeleteMedia(url)}
                           disabled={isSubmitting || isUploading}
                           title="Remover mídia"
                         >

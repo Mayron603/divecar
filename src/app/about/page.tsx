@@ -1,8 +1,8 @@
+
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LucideIcon } from 'lucide-react';
-import { Info, Target, Eye, ShieldCheck, Users2, Search } from 'lucide-react'; // ShieldCheck pode ser usado para Valores ou Justiça
-import Image from 'next/image';
+import { Info, Target, Eye, ShieldCheck, Users2, Search } from 'lucide-react';
 
 interface AboutSection {
   title: string;
@@ -24,7 +24,7 @@ const aboutSections: AboutSection[] = [
   {
     title: "Nossos Valores",
     content: "Legalidade, Justiça, Ética, Profissionalismo, Dedicação, Sigilo Profissional e Respeito aos Direitos Humanos. Estes são os pilares que norteiam cada ação investigativa e decisão de nossos policiais.",
-    icon: ShieldCheck, // Ou Scale (Balança da Justiça) se preferir
+    icon: ShieldCheck,
   },
 ];
 
@@ -39,14 +39,17 @@ export default function AboutPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         <div>
-          <Image 
-            src="https://placehold.co/600x400.png" 
-            alt="Equipe da DIVECAR Osasco" 
-            width={600} 
-            height={400} 
-            className="rounded-lg shadow-xl"
-            data-ai-hint="detectives investigation police"
-          />
+          <video
+            className="w-full h-auto rounded-lg shadow-xl"
+            autoPlay
+            loop
+            muted
+            playsInline
+            aria-label="Vídeo institucional sobre a DIVECAR Osasco"
+          >
+            <source src="/videos/sobre_nos.mp4" type="video/mp4" />
+            Seu navegador não suporta o elemento de vídeo.
+          </video>
         </div>
         <div className="space-y-6">
           <h2 className="text-3xl font-headline font-semibold text-primary">Quem Somos</h2>
@@ -89,7 +92,7 @@ export default function AboutPage() {
             </ul>
           </div>
           <div className="flex justify-center">
-            <Search className="h-40 w-40 text-primary opacity-80" /> {/* Changed Icon */}
+            <Search className="h-40 w-40 text-primary opacity-80" />
           </div>
         </div>
       </section>

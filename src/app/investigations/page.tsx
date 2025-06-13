@@ -807,7 +807,7 @@ export default function InvestigationsPage() {
                   </div>
                 )}
               </CardContent>
-              <CardFooter className="flex justify-between items-center border-t pt-4 mt-auto">
+              <CardFooter className="flex flex-wrap justify-between items-center gap-x-4 gap-y-2 border-t pt-4 mt-auto">
                 <Button 
                     variant="outline" 
                     size="sm" 
@@ -816,7 +816,7 @@ export default function InvestigationsPage() {
                 >
                   <MessageCircle className="mr-1.5 h-4 w-4" /> Comentários
                 </Button>
-                <div className="flex space-x-2">
+                <div className="flex items-center space-x-2">
                     <Button variant="outline" size="sm" onClick={() => handleEdit(inv)} disabled={isSubmitting || isUploading}>
                         <Edit3 className="mr-1.5 h-4 w-4" /> Editar
                     </Button>

@@ -1,7 +1,7 @@
 
 import { HeroSection } from '@/components/sections/hero-section';
 import { InfoCard } from '@/components/common/info-card';
-import { Users, ScrollText, Info, Building, Video, Shirt } from 'lucide-react'; // Changed ShieldCheck to Building
+import { Users, ScrollText, Info, Building, Video, Shirt } from 'lucide-react'; 
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -75,8 +75,35 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="py-12">
+        <PageHeader
+          title="Nossas Operações em Destaque"
+          description="Veja um pouco mais da nossa atuação e dedicação em campo."
+          icon={Video}
+        />
+        <div className="flex justify-center">
+          <Card className="shadow-xl overflow-hidden max-w-3xl w-full">
+            <CardContent className="p-0">
+              <video 
+                className="w-full h-auto"
+                controls
+                autoPlay
+                loop
+                muted
+                playsInline 
+                preload="metadata"
+                aria-label="Vídeo adicional de operações da DIVECAR Osasco"
+              >
+                <source src="/videos/divecar.mp4" type="video/mp4" />
+                Seu navegador não suporta o elemento de vídeo.
+              </video>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       <section className="text-center py-12 bg-card p-8 rounded-lg shadow-xl">
-        <Building className="h-16 w-16 text-accent mx-auto mb-6"/> {/* Changed Icon */}
+        <Building className="h-16 w-16 text-accent mx-auto mb-6"/>
         <h2 className="text-3xl font-headline font-bold text-primary mb-4">Compromisso com Osasco</h2>
         <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
           A DIVECAR Osasco é composta por profissionais dedicados e altamente qualificados, focados na investigação criminal para desvendar e coibir crimes de furto e roubo de veículos e cargas, visando a segurança e a justiça para a população de Osasco.

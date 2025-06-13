@@ -1,86 +1,77 @@
+
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LucideIcon } from 'lucide-react';
 import { 
   Users, 
-  Briefcase, // Delegado
+  Briefcase,  // Delegado
   FileText,  // Escrivão
   Search,    // Investigador
   User,      // Agente Policial
-  Fingerprint, // Papiloscopista
-  Award,     // Delegado Chefe/Titular
-  Star,      // Destaque para Chefias
-  ShieldCheck // Símbolo genérico de autoridade/polícia
+  Activity,  // Médico Legista (sugestão)
+  FlaskConical, // Perito Criminal (sugestão)
+  ClipboardCheck // Médico Legista Alternativo
 } from 'lucide-react';
 
 interface Rank {
   name: string;
-  exampleName?: string;
+  exampleNames?: string[]; // Alterado para array e opcional
   description: string;
   icon: LucideIcon;
 }
 
 const hierarchyData: Rank[] = [
   {
-    name: "Delegado de Polícia Titular",
-    exampleName: "Dr. Carlos Alberto Nobre",
-    description: "Responsável pela direção e coordenação geral da DIVECAR, define estratégias investigativas e gerencia a unidade.",
-    icon: Award, 
-  },
-  {
     name: "Delegado de Polícia",
-    exampleName: "Dra. Ana Paula Matos",
-    description: "Preside inquéritos policiais, coordena equipes de investigação, analisa provas e representa pela decretação de medidas cautelares.",
+    exampleNames: ["Junior Martins", "Gustavo Silva"],
+    description: "Preside inquéritos policiais, coordena equipes de investigação, analisa provas, representa pela decretação de medidas cautelares e lidera a unidade ou equipes especializadas.",
     icon: Briefcase,
   },
   {
-    name: "Escrivão de Polícia Chefe",
-    exampleName: "Sr. João Ricardo Silva",
-    description: "Coordena os serviços cartorários da delegacia, supervisiona a formalização dos atos de polícia judiciária e o fluxo de documentos.",
-    icon: Star, // Destaque para chefia de cartório
+    name: "Médico Legista",
+    description: "Realiza exames de corpo de delito em vivos e mortos, analisa lesões corporais, determina a causa mortis e elabora laudos técnicos essenciais para a investigação criminal.",
+    icon: ClipboardCheck, // Usando ClipboardCheck para laudos/exames
   },
   {
-    name: "Escrivão de Polícia",
-    exampleName: "Sra. Maria Eduarda Costa",
-    description: "Responsável pela formalização dos atos de polícia judiciária, como depoimentos, autos de prisão, e pela guarda e organização de inquéritos.",
-    icon: FileText,
-  },
-  {
-    name: "Investigador de Polícia Chefe",
-    exampleName: "Sr. Marcos Vinicius Lima",
-    description: "Lidera equipes de investigadores em campo, planeja operações, distribui tarefas e orienta as diligências investigativas.",
-    icon: ShieldCheck, // Destaque para chefia de investigação
+    name: "Perito Criminal",
+    description: "Coleta e analisa vestígios em locais de crime, examina evidências em laboratório (balística, DNA, informática forense, etc.) e elabora laudos periciais fundamentais para a elucidação de crimes.",
+    icon: FlaskConical,
   },
   {
     name: "Investigador de Polícia",
-    exampleName: "Sr. Paulo Sérgio Oliveira",
-    description: "Realiza diligências investigativas, coleta de provas, oitivas, campanas e outras atividades para elucidação de crimes.",
+    exampleNames: ["Tinga Tava", "PistolaNadisney", "David Silva", "Albert Patrick"],
+    description: "Realiza diligências investigativas, coleta de provas, oitivas, campanas, infiltrações e outras atividades de campo e inteligência para a elucidação de crimes e identificação de autores.",
     icon: Search,
   },
   {
-    name: "Agente Policial",
-    exampleName: "Sra. Laura Mendes",
-    description: "Auxilia nas atividades investigativas e operacionais, executa mandados, conduz viaturas e presta apoio logístico às equipes.",
-    icon: User,
+    name: "Escrivão de Polícia",
+    description: "Responsável pela formalização dos atos de polícia judiciária, como depoimentos, autos de prisão, e pela guarda, organização e tramitação de inquéritos e outros procedimentos policiais.",
+    icon: FileText,
   },
   {
-    name: "Papiloscopista Policial",
-    exampleName: "Sr. Ricardo Alves",
-    description: "Coleta e analisa impressões digitais e outros vestígios papiloscópicos para identificação humana em locais de crime e documentos.",
-    icon: Fingerprint,
+    name: "Agente Policial",
+    description: "Auxilia nas atividades investigativas e operacionais, executa mandados, conduz viaturas, realiza escoltas, garante a segurança de instalações policiais e presta apoio logístico às equipes.",
+    icon: User,
   },
 ];
 
 const RankCard = ({ rank }: { rank: Rank }) => (
-  <Card className="shadow-lg mb-6 hover:shadow-xl transition-shadow duration-300">
+  <Card className="shadow-lg mb-6 hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
     <CardHeader>
       <div className="flex items-center gap-3">
         <rank.icon className="h-8 w-8 text-accent" />
         <CardTitle className="text-2xl text-primary">{rank.name}</CardTitle>
       </div>
-      {rank.exampleName && <p className="text-sm text-muted-foreground mt-1">{rank.exampleName}</p>}
+      {rank.exampleNames && rank.exampleNames.length > 0 && (
+        <div className="mt-2">
+          <p className="text-sm font-semibold text-muted-foreground">Exemplos:</p>
+          <ul className="list-disc list-inside ml-4 text-sm text-muted-foreground">
+            {rank.exampleNames.map(name => <li key={name}>{name}</li>)}
+          </ul>
+        </div>
+      )}
     </CardHeader>
-    <CardContent>
+    <CardContent className="flex-grow">
       <CardDescription className="text-md mt-1 text-foreground leading-relaxed">{rank.description}</CardDescription>
     </CardContent>
   </Card>
@@ -90,11 +81,11 @@ export default function HierarchyPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Hierarquia da DIVECAR Osasco"
-        description="Conheça os cargos e funções que compõem a estrutura da Divisão de Investigações sobre Furtos e Roubos de Veículos e Cargas."
+        title="Hierarquia da Polícia Civil"
+        description="Conheça os cargos e funções que compõem a estrutura da Polícia Civil, incluindo os atuantes na DIVECAR Osasco."
         icon={Users}
       />
-      <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {hierarchyData.map(rank => <RankCard key={rank.name} rank={rank} />)}
       </div>
     </div>

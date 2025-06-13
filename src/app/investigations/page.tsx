@@ -101,9 +101,9 @@ export default function InvestigationsPage() {
 
     let currentInvestigationId = editingInvestigation?.id;
     let finalMediaUrls: string[] = editingInvestigation?.mediaUrls ? [...editingInvestigation.mediaUrls] : [];
-    let newInvestigationBase: Investigation | null = null;
-
+    
     if (!editingInvestigation) {
+        console.log("[InvestigationsPage] Creating new investigation record...");
         try {
             const initialPayload: Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber'> & { mediaUrls?: string[] } = {
                 title,
@@ -111,18 +111,29 @@ export default function InvestigationsPage() {
                 assignedInvestigator,
                 status,
                 occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
-                mediaUrls: [],
+                mediaUrls: [], // Initial record has no media yet
             };
-            newInvestigationBase = await addInvestigation(initialPayload);
-            currentInvestigationId = newInvestigationBase.id;
-            toast({ title: "Registro Base Criado", description: `R.O. ${newInvestigationBase.roNumber} iniciado. Processando mídias se houver...` });
-        } catch (error: any) {
-            console.error("[InvestigationsPage] Error creating initial investigation record with Supabase. Full error object:", error);
-            console.error("[InvestigationsPage] Error creating initial investigation record with Supabase. Message:", error.message);
+            const addResponse = await addInvestigation(initialPayload);
+            if (!addResponse.success || !addResponse.data) {
+                console.error("[InvestigationsPage] Failed to create initial investigation record. Server error:", addResponse.error);
+                toast({
+                    variant: "destructive",
+                    title: "Erro ao Iniciar Investigação",
+                    description: addResponse.error || `Falha ao criar registro base. Verifique o console.`,
+                });
+                setIsSubmitting(false);
+                return;
+            }
+            currentInvestigationId = addResponse.data.id;
+            console.log("[InvestigationsPage] Initial investigation record created successfully. ID:", currentInvestigationId, "R.O.:", addResponse.data.roNumber);
+            toast({ title: "Registro Base Criado", description: `R.O. ${addResponse.data.roNumber} iniciado. Processando mídias se houver...` });
+        } catch (error: any) { // Catch for unexpected errors during addInvestigation call itself
+            console.error("[InvestigationsPage] Critical error calling addInvestigation server action. Full error object:", error);
+            console.error("[InvestigationsPage] Error message:", error.message);
             toast({
                 variant: "destructive",
-                title: "Erro ao Iniciar Investigação",
-                description: error.message || `Falha ao criar registro base. Verifique o console do servidor para detalhes do Supabase.`,
+                title: "Erro Crítico ao Iniciar Investigação",
+                description: error.message || `Falha inesperada ao criar registro base. Verifique o console.`,
             });
             setIsSubmitting(false);
             return;
@@ -136,7 +147,7 @@ export default function InvestigationsPage() {
         setIsSubmitting(false);
         return;
     }
-    console.log("[InvestigationsPage] Current Investigation ID before upload attempt:", currentInvestigationId);
+    console.log("[InvestigationsPage] Current Investigation ID for media processing:", currentInvestigationId);
 
 
     if (selectedFiles && selectedFiles.length > 0) {
@@ -146,13 +157,18 @@ export default function InvestigationsPage() {
       for (let i = 0; i < selectedFiles.length; i++) {
         formData.append('mediaFiles', selectedFiles[i]);
       }
-      console.log("[InvestigationsPage] FormData prepared for upload:", formData.get('investigationId'), Array.from(formData.getAll('mediaFiles')).length, "files");
+      
+      console.log("[InvestigationsPage] FormData prepared for upload. Investigation ID:", formData.get('investigationId'), "Number of files:", Array.from(formData.getAll('mediaFiles')).length);
+      if (Array.from(formData.getAll('mediaFiles')).length > 0) {
+        const firstFile = Array.from(formData.getAll('mediaFiles'))[0] as File;
+        console.log("[InvestigationsPage] First file details:", {name: firstFile.name, size: firstFile.size, type: firstFile.type});
+      }
+
 
       try {
         console.log("[InvestigationsPage] Calling uploadFileToSupabaseStorage server action...");
         const uploadResponse = await uploadFileToSupabaseStorage(formData);
         console.log("[InvestigationsPage] Raw response from uploadFileToSupabaseStorage server action:", uploadResponse);
-
 
         if (uploadResponse.success && uploadResponse.urls) {
           finalMediaUrls = [...finalMediaUrls, ...uploadResponse.urls];
@@ -164,11 +180,10 @@ export default function InvestigationsPage() {
             title: "Erro no Upload de Mídia",
             description: uploadResponse.error || "Não foi possível carregar uma ou mais mídias. Verifique o console do servidor e suas políticas do Supabase Storage.",
           });
-          setIsUploading(false);
-          setIsSubmitting(false);
-          return;
+          // Do not return here if some files failed but others might succeed or if it's an update.
+          // The main save will proceed with whatever finalMediaUrls contains.
         }
-      } catch (error: any) {
+      } catch (error: any) { // This catch block handles if the call to the server action itself fails (e.g., network error, "unexpected response")
         console.error("[InvestigationsPage] Error calling uploadFileToSupabaseStorage server action. Full error object:", error);
         console.error("[InvestigationsPage] Error message from upload process:", error.message);
         console.error("[InvestigationsPage] Error stack from upload process:", error.stack);
@@ -179,7 +194,7 @@ export default function InvestigationsPage() {
         });
         setIsUploading(false);
         setIsSubmitting(false);
-        return;
+        return; 
       } finally {
         setIsUploading(false);
       }
@@ -194,20 +209,29 @@ export default function InvestigationsPage() {
       mediaUrls: finalMediaUrls,
     };
 
+    console.log("[InvestigationsPage] Attempting to save/update final investigation record with ID:", currentInvestigationId, "Payload:", investigationPayload);
     try {
-      await updateInvestigation(currentInvestigationId, investigationPayload);
-      toast({ title: editingInvestigation ? "Investigação Atualizada" : "Investigação Salva", description: `"${investigationPayload.title}" foi salva com sucesso.` });
-
-      setShowForm(false);
-      resetForm();
-      fetchInvestigations();
-    } catch (error: any) {
-      console.error("[InvestigationsPage] Error saving/updating investigation to Supabase (final step). Full error object:", error);
-      console.error("[InvestigationsPage] Error saving/updating investigation to Supabase (final step). Message:", error.message);
+      const updateOpResponse = await updateInvestigation(currentInvestigationId, investigationPayload);
+      if (!updateOpResponse.success) {
+        console.error("[InvestigationsPage] Error saving/updating investigation (final step). Server error:", updateOpResponse.error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao Salvar Investigação",
+            description: updateOpResponse.error || `Verifique o console do servidor para detalhes.`,
+        });
+      } else {
+        toast({ title: editingInvestigation ? "Investigação Atualizada" : "Investigação Salva", description: `"${investigationPayload.title}" foi salva com sucesso.` });
+        setShowForm(false);
+        resetForm();
+        fetchInvestigations();
+      }
+    } catch (error: any) { // Catch for unexpected errors during updateInvestigation call itself
+      console.error("[InvestigationsPage] Critical error calling updateInvestigation server action. Full error object:", error);
+      console.error("[InvestigationsPage] Error message:", error.message);
       toast({
         variant: "destructive",
-        title: "Erro ao Salvar Investigação",
-        description: error.message || `Verifique o console do servidor para detalhes do Supabase.`,
+        title: "Erro Crítico ao Salvar Investigação",
+        description: error.message || `Verifique o console do servidor para detalhes.`,
       });
     } finally {
       setIsSubmitting(false);
@@ -231,12 +255,12 @@ export default function InvestigationsPage() {
         console.warn("[InvestigationsPage] Attempted to delete media for a non-editing investigation.");
         return;
     }
-    setIsSubmitting(true);
+    setIsSubmitting(true); // Consider a specific 'isDeletingMedia' state if needed
     try {
       const deleteResponse = await deleteFileFromSupabaseStorageUrl(mediaUrlToDelete);
       if (!deleteResponse.success) {
-        // Error already logged by service, just show toast
         toast({ variant: "destructive", title: "Erro ao Remover Mídia", description: deleteResponse.error || "Falha ao remover mídia do storage."});
+        setIsSubmitting(false);
         return;
       }
 
@@ -244,17 +268,21 @@ export default function InvestigationsPage() {
       setExistingMediaUrls(updatedMediaUrls);
 
       const updatePayload = { mediaUrls: updatedMediaUrls };
-      await updateInvestigation(editingInvestigation.id, updatePayload);
+      const recordUpdateResponse = await updateInvestigation(editingInvestigation.id, updatePayload);
 
-      toast({ title: "Mídia Removida", description: "O arquivo e sua referência foram removidos." });
-      setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
-    } catch (error: any) { // Catch for updateInvestigation or other unexpected errors
-        console.error("[InvestigationsPage] Error during media deletion process (updating record). Full error object:", error);
-        console.error("[InvestigationsPage] Error during media deletion process (updating record). Message:", error.message);
+      if (!recordUpdateResponse.success) {
+        toast({ variant: "destructive", title: "Erro ao Atualizar Investigação", description: recordUpdateResponse.error || "Não foi possível atualizar o registro após remover a mídia." });
+      } else {
+        toast({ title: "Mídia Removida", description: "O arquivo e sua referência foram removidos." });
+        setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
+      }
+
+    } catch (error: any) { 
+        console.error("[InvestigationsPage] Error during media deletion process (calling server actions). Full error object:", error);
         toast({
           variant: "destructive",
-          title: "Erro ao Atualizar Investigação Pós-Remoção de Mídia",
-          description: error.message || `Verifique o console do servidor.`,
+          title: "Erro Inesperado na Remoção de Mídia",
+          description: error.message || `Verifique o console.`,
         });
     } finally {
         setIsSubmitting(false);
@@ -265,16 +293,23 @@ export default function InvestigationsPage() {
   const handleDeleteInvestigation = async (investigation: Investigation) => {
     setIsSubmitting(true);
     try {
-      await deleteInvestigation(investigation.id, investigation.mediaUrls);
-      toast({ title: "Investigação Removida", description: `"${investigation.title}" e suas mídias associadas foram removidas.`, variant: "default" });
-      fetchInvestigations();
+      const deleteResponse = await deleteInvestigation(investigation.id, investigation.mediaUrls);
+      if (!deleteResponse.success) {
+         toast({
+            variant: "destructive",
+            title: "Erro ao Remover Investigação",
+            description: deleteResponse.error || `Verifique o console do servidor para detalhes.`,
+          });
+      } else {
+        toast({ title: "Investigação Removida", description: `"${investigation.title}" e suas mídias associadas foram removidas.`, variant: "default" });
+        fetchInvestigations(); // Refresh list
+      }
     } catch (error: any) {
-      console.error("[InvestigationsPage] Error deleting investigation from Supabase. Full error object:", error);
-      console.error("[InvestigationsPage] Error deleting investigation from Supabase. Message:", error.message);
+      console.error("[InvestigationsPage] Critical error calling deleteInvestigation server action. Full error object:", error);
       toast({
         variant: "destructive",
-        title: "Erro ao Remover Investigação",
-        description: error.message || `Verifique o console do servidor para detalhes do Supabase.`,
+        title: "Erro Crítico ao Remover Investigação",
+        description: error.message || `Verifique o console do servidor para detalhes.`,
       });
     } finally {
       setIsSubmitting(false);

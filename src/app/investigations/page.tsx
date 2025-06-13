@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, type FormEvent, useRef } from 'react';
@@ -83,6 +82,12 @@ export default function InvestigationsPage() {
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("[InvestigationsPage] handleFileChange triggered. Files selected:", event.target.files);
+    if (event.target.files && event.target.files.length > 0) {
+      Array.from(event.target.files).forEach((file, index) => {
+        console.log(`[InvestigationsPage] Selected file ${index + 1}: Name: ${file.name}, Size: ${file.size}, Type: ${file.type}`);
+      });
+    }
     setSelectedFiles(event.target.files);
   };
 
@@ -98,7 +103,6 @@ export default function InvestigationsPage() {
     }
 
     setIsSubmitting(true);
-
     let currentInvestigationId = editingInvestigation?.id;
     let finalMediaUrls: string[] = editingInvestigation?.mediaUrls ? [...editingInvestigation.mediaUrls] : [];
     
@@ -155,19 +159,20 @@ export default function InvestigationsPage() {
     if (selectedFiles && selectedFiles.length > 0) {
       setIsUploading(true);
       const formData = new FormData();
+      console.log("[InvestigationsPage] Appending investigationId to FormData:", currentInvestigationId);
       formData.append('investigationId', currentInvestigationId);
       for (let i = 0; i < selectedFiles.length; i++) {
+        console.log(`[InvestigationsPage] Appending file to FormData: Name: ${selectedFiles[i].name}, Size: ${selectedFiles[i].size}, Type: ${selectedFiles[i].type}`);
         formData.append('mediaFiles', selectedFiles[i]);
       }
       
       try {
         const fileEntries = Array.from(formData.getAll('mediaFiles'));
         const fileDetails = fileEntries.map(file => file instanceof File ? {name: file.name, size: file.size, type: file.type} : {error: 'Not a file', type: typeof file });
-        console.log("[InvestigationsPage] FormData prepared for upload. Investigation ID:", formData.get('investigationId'), "Number of files:", fileEntries.length, "File details:", fileDetails);
+        console.log("[InvestigationsPage] FormData prepared for upload. Investigation ID:", formData.get('investigationId'), "Number of files:", fileEntries.length, "File details:", JSON.stringify(fileDetails));
       } catch (e) {
          console.warn("[InvestigationsPage] Could not log FormData details:", e)
       }
-
 
       try {
         console.log("[InvestigationsPage] Calling uploadFileToSupabaseStorage server action...");
@@ -208,11 +213,11 @@ export default function InvestigationsPage() {
       mediaUrls: finalMediaUrls,
     };
 
-    console.log("[InvestigationsPage] Attempting to save/update final investigation record with ID:", currentInvestigationId, "Payload:", investigationPayload);
+    console.log("[InvestigationsPage] Attempting to save/update final investigation record with ID:", currentInvestigationId, "Payload:", JSON.stringify(investigationPayload));
     try {
       const updateOpResponse = await updateInvestigation(currentInvestigationId, investigationPayload);
       console.log("[InvestigationsPage] Response from updateInvestigation server action:", updateOpResponse);
-      if (!updateOpResponse.success) {
+      if (!updateOpResponse.success || !updateOpResponse.data) {
         console.error("[InvestigationsPage] Error saving/updating investigation (final step). Server error:", updateOpResponse.error);
         toast({
             variant: "destructive",
@@ -258,8 +263,10 @@ export default function InvestigationsPage() {
     }
     setIsSubmitting(true); 
     try {
+      console.log(`[InvestigationsPage] Calling deleteFileFromSupabaseStorageUrl for URL: ${mediaUrlToDelete}`);
       const deleteResponse = await deleteFileFromSupabaseStorageUrl(mediaUrlToDelete);
       console.log("[InvestigationsPage] Response from deleteFileFromSupabaseStorageUrl server action:", deleteResponse);
+
       if (!deleteResponse.success) {
         toast({ variant: "destructive", title: "Erro ao Remover Mídia", description: deleteResponse.error || "Falha ao remover mídia do storage."});
         setIsSubmitting(false);
@@ -270,6 +277,7 @@ export default function InvestigationsPage() {
       setExistingMediaUrls(updatedMediaUrls);
 
       const updatePayload = { mediaUrls: updatedMediaUrls };
+      console.log(`[InvestigationsPage] Updating investigation record ${editingInvestigation.id} after media deletion. New mediaUrls:`, updatedMediaUrls);
       const recordUpdateResponse = await updateInvestigation(editingInvestigation.id, updatePayload);
       console.log("[InvestigationsPage] Response from updateInvestigation (after media deletion) server action:", recordUpdateResponse);
 
@@ -278,6 +286,8 @@ export default function InvestigationsPage() {
       } else {
         toast({ title: "Mídia Removida", description: "O arquivo e sua referência foram removidos." });
         setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
+         // Re-fetch investigations to update the list view
+        fetchInvestigations();
       }
 
     } catch (error: any) { 
@@ -298,6 +308,7 @@ export default function InvestigationsPage() {
   const handleDeleteInvestigation = async (investigation: Investigation) => {
     setIsSubmitting(true);
     try {
+      console.log(`[InvestigationsPage] Calling deleteInvestigation for ID: ${investigation.id}`);
       const deleteResponse = await deleteInvestigation(investigation.id, investigation.mediaUrls);
       console.log("[InvestigationsPage] Response from deleteInvestigation server action:", deleteResponse);
       if (!deleteResponse.success) {

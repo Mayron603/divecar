@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Landmark, Home, Users, ScrollText, Info, Building } from 'lucide-react'; // Changed Shield to Landmark/Building
+import { Landmark, Home, Users, ScrollText, Info, Building, FolderSearch } from 'lucide-react'; // Changed Shield to Landmark/Building, Added FolderSearch
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
@@ -9,6 +9,7 @@ const navItems = [
   { href: '/hierarchy', label: 'Hierarquia', icon: <Users className="h-5 w-5" /> },
   { href: '/history', label: 'História', icon: <ScrollText className="h-5 w-5" /> },
   { href: '/about', label: 'Sobre Nós', icon: <Info className="h-5 w-5" /> },
+  { href: '/investigations', label: 'Investigações', icon: <FolderSearch className="h-5 w-5" /> },
 ];
 
 export function Navbar() {

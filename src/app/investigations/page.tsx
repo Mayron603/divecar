@@ -17,14 +17,18 @@ import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClo
 import { useToast } from '@/hooks/use-toast';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
 import {
-  addInvestigation,
+  addInvestigation, // Will be used for initial record creation
   getInvestigations,
-  updateInvestigation,
+  updateInvestigation, // Will be used for final update with media URLs and general edits
   deleteInvestigation,
-  uploadFileToSupabaseStorage,
-  deleteFileFromSupabaseStorageUrl
+  deleteFileFromSupabaseStorageUrl,
+  // OBSOLETE_uploadFileToServerAction, // No longer using this for primary upload
 } from '@/lib/supabase/investigationService';
-import Image from 'next/image';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'; // For client-side uploads
+import type { SupabaseClient } from '@supabase/supabase-js';
+import NextImage from 'next/image'; // Renamed to avoid conflict with Lucide Icon
+
+const INVESTIGATION_MEDIA_BUCKET = 'investigationmedia';
 
 export default function InvestigationsPage() {
   const { toast } = useToast();
@@ -33,7 +37,7 @@ export default function InvestigationsPage() {
   const [editingInvestigation, setEditingInvestigation] = useState<Investigation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false); // For client-side upload progress
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -43,6 +47,9 @@ export default function InvestigationsPage() {
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>([]);
+  
+  // Supabase client for browser operations
+  const supabaseBrowserClient: SupabaseClient = createSupabaseBrowserClient();
 
 
   const fetchInvestigations = async () => {
@@ -56,8 +63,7 @@ export default function InvestigationsPage() {
         title: "Erro ao Carregar Investigações",
         description: error.message || `Não foi possível buscar os dados. Verifique suas políticas RLS e a conexão.`,
       });
-      console.error("[InvestigationsPage] Error fetching investigations from Supabase. Full error object:", error);
-      console.error("[InvestigationsPage] Error fetching investigations from Supabase. Message:", error.message);
+      console.error("[InvestigationsPage] Error fetching investigations. Full error object:", error);
     } finally {
       setIsLoading(false);
     }
@@ -104,119 +110,115 @@ export default function InvestigationsPage() {
 
     setIsSubmitting(true);
     let currentInvestigationId = editingInvestigation?.id;
-    let finalMediaUrls: string[] = editingInvestigation?.mediaUrls ? [...editingInvestigation.mediaUrls] : [];
-    
-    if (!editingInvestigation) {
-        console.log("[InvestigationsPage] Creating new investigation record...");
-        try {
-            const initialPayload: Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber'> & { mediaUrls?: string[] } = {
-                title,
-                description,
-                assignedInvestigator,
-                status,
-                occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
-                mediaUrls: [], 
-            };
-            const addResponse = await addInvestigation(initialPayload);
-            console.log("[InvestigationsPage] Response from addInvestigation server action:", addResponse);
-            if (!addResponse.success || !addResponse.data) {
-                console.error("[InvestigationsPage] Failed to create initial investigation record. Server error:", addResponse.error);
-                toast({
-                    variant: "destructive",
-                    title: "Erro ao Iniciar Investigação",
-                    description: addResponse.error || `Falha ao criar registro base. Verifique o console.`,
-                });
-                setIsSubmitting(false);
-                return;
-            }
-            currentInvestigationId = addResponse.data.id;
-            console.log("[InvestigationsPage] Initial investigation record created successfully. ID:", currentInvestigationId, "R.O.:", addResponse.data.roNumber);
-            toast({ title: "Registro Base Criado", description: `R.O. ${addResponse.data.roNumber} iniciado. Processando mídias se houver...` });
-        } catch (error: any) { 
-            console.error("[InvestigationsPage] Critical error calling addInvestigation server action. Full error object:", error);
-            console.error("[InvestigationsPage] Error message:", error.message);
-            console.error("[InvestigationsPage] Error stack:", error.stack);
+    let finalMediaUrls: string[] = editingInvestigation ? [...(editingInvestigation.mediaUrls || [])] : [];
+    let roNumber = editingInvestigation?.roNumber;
+
+    try {
+      // Step 1: Create or identify the investigation record ID
+      if (!editingInvestigation) {
+        console.log("[InvestigationsPage] Creating new initial investigation record...");
+        const initialPayload = {
+            title,
+            description,
+            assignedInvestigator,
+            status,
+            occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
+        };
+        const addResponse = await addInvestigation(initialPayload);
+        console.log("[InvestigationsPage] Response from addInvestigation (initial) server action:", addResponse);
+
+        if (!addResponse.success || !addResponse.data?.id) {
             toast({
                 variant: "destructive",
-                title: "Erro Crítico ao Iniciar Investigação",
-                description: error.message || `Falha inesperada ao criar registro base. Verifique o console.`,
+                title: "Erro ao Iniciar Investigação",
+                description: addResponse.error || "Falha ao criar registro base da investigação.",
             });
             setIsSubmitting(false);
             return;
         }
-    }
+        currentInvestigationId = addResponse.data.id;
+        roNumber = addResponse.data.roNumber;
+        console.log(`[InvestigationsPage] Initial investigation record created. ID: ${currentInvestigationId}, R.O.: ${roNumber}`);
+        toast({ title: "Registro Base Criado", description: `R.O. ${roNumber} iniciado. Processando mídias se houver...` });
+      } else {
+        currentInvestigationId = editingInvestigation.id; // Already have ID for editing
+         console.log(`[InvestigationsPage] Editing existing investigation. ID: ${currentInvestigationId}`);
+      }
 
-    if (!currentInvestigationId) {
-        const criticalErrorMsg = "[InvestigationsPage] Critical error: Investigation ID is missing for file upload/update step.";
-        console.error(criticalErrorMsg);
-        toast({ variant: "destructive", title: "Erro Crítico", description: "ID da investigação não encontrado para prosseguir." });
+      if (!currentInvestigationId) {
+        toast({ variant: "destructive", title: "Erro Crítico", description: "ID da investigação não encontrado para prosseguir com mídias." });
         setIsSubmitting(false);
         return;
-    }
-    console.log("[InvestigationsPage] Current Investigation ID for media processing:", currentInvestigationId);
-
-
-    if (selectedFiles && selectedFiles.length > 0) {
-      setIsUploading(true);
-      const formData = new FormData();
-      console.log("[InvestigationsPage] Appending investigationId to FormData:", currentInvestigationId);
-      formData.append('investigationId', currentInvestigationId);
-      for (let i = 0; i < selectedFiles.length; i++) {
-        console.log(`[InvestigationsPage] Appending file to FormData: Name: ${selectedFiles[i].name}, Size: ${selectedFiles[i].size}, Type: ${selectedFiles[i].type}`);
-        formData.append('mediaFiles', selectedFiles[i]);
       }
       
-      try {
-        const fileEntries = Array.from(formData.getAll('mediaFiles'));
-        const fileDetails = fileEntries.map(file => file instanceof File ? {name: file.name, size: file.size, type: file.type} : {error: 'Not a file', type: typeof file });
-        console.log("[InvestigationsPage] FormData prepared for upload. Investigation ID:", formData.get('investigationId'), "Number of files:", fileEntries.length, "File details:", JSON.stringify(fileDetails));
-      } catch (e) {
-         console.warn("[InvestigationsPage] Could not log FormData details:", e)
-      }
+      // Step 2: Upload new files directly from client if any
+      if (selectedFiles && selectedFiles.length > 0) {
+        setIsUploading(true);
+        toast({ title: "Upload de Mídia", description: `Enviando ${selectedFiles.length} arquivo(s)...` });
+        const uploadedFileUrlsThisSession: string[] = [];
 
-      try {
-        console.log("[InvestigationsPage] Calling uploadFileToSupabaseStorage server action...");
-        const uploadResponse = await uploadFileToSupabaseStorage(formData);
-        console.log("[InvestigationsPage] Raw response from uploadFileToSupabaseStorage server action:", uploadResponse);
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const file = selectedFiles[i];
+          const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
+          const filePath = `${currentInvestigationId}/${fileName}`;
+          console.log(`[InvestigationsPage] Client-side upload: Attempting to upload ${file.name} to path: ${filePath} in bucket ${INVESTIGATION_MEDIA_BUCKET}`);
+          
+          const { data: uploadData, error: uploadError } = await supabaseBrowserClient.storage
+            .from(INVESTIGATION_MEDIA_BUCKET)
+            .upload(filePath, file, {
+              cacheControl: '3600',
+              upsert: false,
+            });
 
-        if (uploadResponse.success && uploadResponse.urls) {
-          finalMediaUrls = [...finalMediaUrls, ...uploadResponse.urls];
-          toast({ title: "Mídias Enviadas", description: `${uploadResponse.urls.length} arquivo(s) de mídia foram processados.`});
-        } else {
-          console.error("[InvestigationsPage] Upload failed. Server response error:", uploadResponse.error);
-          toast({
-            variant: "destructive",
-            title: "Erro no Upload de Mídia",
-            description: uploadResponse.error || "Não foi possível carregar uma ou mais mídias. Verifique o console do servidor e suas políticas do Supabase Storage.",
-          });
+          if (uploadError) {
+            console.error(`[InvestigationsPage] Client-side upload error for ${file.name}:`, uploadError);
+            toast({
+              variant: "destructive",
+              title: `Erro no Upload de ${file.name}`,
+              description: uploadError.message || "Não foi possível carregar esta mídia.",
+            });
+            // Decide if you want to stop all uploads on first error or continue
+            // For now, let's stop.
+            setIsUploading(false);
+            setIsSubmitting(false);
+            return; 
+          }
+
+          if (uploadData?.path) {
+            const { data: publicUrlData } = supabaseBrowserClient.storage
+              .from(INVESTIGATION_MEDIA_BUCKET)
+              .getPublicUrl(uploadData.path);
+            
+            if (publicUrlData?.publicUrl) {
+              console.log(`[InvestigationsPage] Client-side upload success for ${file.name}. URL: ${publicUrlData.publicUrl}`);
+              uploadedFileUrlsThisSession.push(publicUrlData.publicUrl);
+            } else {
+              console.error(`[InvestigationsPage] Client-side upload: Failed to get public URL for ${uploadData.path}`);
+              toast({ variant: "destructive", title: `Erro ao obter URL para ${file.name}`, description: "Upload pareceu bem-sucedido, mas a URL não foi obtida." });
+            }
+          }
         }
-      } catch (error: any) { 
-        console.error("[InvestigationsPage] Error calling uploadFileToSupabaseStorage server action. Full error object:", error);
-        console.error("[InvestigationsPage] Error message from upload process:", error.message);
-        console.error("[InvestigationsPage] Error stack from upload process:", error.stack);
-        toast({
-          variant: "destructive",
-          title: "Erro Inesperado no Upload",
-          description: error.message || "Ocorreu um erro inesperado ao tentar enviar mídias. Verifique o console.",
-        });
-      } finally {
+        finalMediaUrls.push(...uploadedFileUrlsThisSession);
         setIsUploading(false);
+         if (uploadedFileUrlsThisSession.length > 0) {
+            toast({ title: "Mídias Enviadas", description: `${uploadedFileUrlsThisSession.length} novo(s) arquivo(s) de mídia processados.`});
+        }
       }
-    }
 
-    const investigationPayload: Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>> = {
-      title,
-      description,
-      assignedInvestigator,
-      status,
-      occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
-      mediaUrls: finalMediaUrls,
-    };
+      // Step 3: Update the investigation record with all metadata and final media URLs
+      const investigationPayload: Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>> = {
+        title,
+        description,
+        assignedInvestigator,
+        status,
+        occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
+        mediaUrls: finalMediaUrls,
+      };
 
-    console.log("[InvestigationsPage] Attempting to save/update final investigation record with ID:", currentInvestigationId, "Payload:", JSON.stringify(investigationPayload));
-    try {
+      console.log(`[InvestigationsPage] Attempting to save/update final investigation record with ID: ${currentInvestigationId}, Payload:`, JSON.stringify(investigationPayload));
       const updateOpResponse = await updateInvestigation(currentInvestigationId, investigationPayload);
-      console.log("[InvestigationsPage] Response from updateInvestigation server action:", updateOpResponse);
+      console.log("[InvestigationsPage] Response from final updateInvestigation server action:", updateOpResponse);
+
       if (!updateOpResponse.success || !updateOpResponse.data) {
         console.error("[InvestigationsPage] Error saving/updating investigation (final step). Server error:", updateOpResponse.error);
         toast({
@@ -225,22 +227,22 @@ export default function InvestigationsPage() {
             description: updateOpResponse.error || `Verifique o console do servidor para detalhes.`,
         });
       } else {
-        toast({ title: editingInvestigation ? "Investigação Atualizada" : "Investigação Salva", description: `"${investigationPayload.title}" foi salva com sucesso.` });
+        toast({ title: editingInvestigation ? "Investigação Atualizada" : "Investigação Salva", description: `R.O. ${roNumber || updateOpResponse.data.roNumber} "${investigationPayload.title}" foi salva com sucesso.` });
         setShowForm(false);
         resetForm();
-        fetchInvestigations();
+        fetchInvestigations(); // Re-fetch to show the new/updated item
       }
-    } catch (error: any) { 
-      console.error("[InvestigationsPage] Critical error calling updateInvestigation server action. Full error object:", error);
-      console.error("[InvestigationsPage] Error message:", error.message);
-      console.error("[InvestigationsPage] Error stack:", error.stack);
+
+    } catch (error: any) {
+      console.error("[InvestigationsPage] Unhandled error in handleSubmit logic:", error);
       toast({
         variant: "destructive",
-        title: "Erro Crítico ao Salvar Investigação",
-        description: error.message || `Verifique o console do servidor para detalhes.`,
+        title: "Erro Inesperado no Formulário",
+        description: error.message || "Ocorreu um erro inesperado ao processar o formulário.",
       });
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 
@@ -274,8 +276,9 @@ export default function InvestigationsPage() {
       }
 
       const updatedMediaUrls = existingMediaUrls.filter(url => url !== mediaUrlToDelete);
-      setExistingMediaUrls(updatedMediaUrls);
+      setExistingMediaUrls(updatedMediaUrls); // Update client state immediately
 
+      // Update the record in the database
       const updatePayload = { mediaUrls: updatedMediaUrls };
       console.log(`[InvestigationsPage] Updating investigation record ${editingInvestigation.id} after media deletion. New mediaUrls:`, updatedMediaUrls);
       const recordUpdateResponse = await updateInvestigation(editingInvestigation.id, updatePayload);
@@ -285,15 +288,18 @@ export default function InvestigationsPage() {
         toast({ variant: "destructive", title: "Erro ao Atualizar Investigação", description: recordUpdateResponse.error || "Não foi possível atualizar o registro após remover a mídia." });
       } else {
         toast({ title: "Mídia Removida", description: "O arquivo e sua referência foram removidos." });
+        // Update the main investigations list if successful
+        setInvestigations(prevInvestigations => 
+            prevInvestigations.map(inv => 
+                inv.id === editingInvestigation.id ? { ...inv, mediaUrls: updatedMediaUrls } : inv
+            )
+        );
+        // Update editingInvestigation state if still in edit mode
         setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
-         // Re-fetch investigations to update the list view
-        fetchInvestigations();
       }
 
     } catch (error: any) { 
-        console.error("[InvestigationsPage] Error during media deletion process (calling server actions). Full error object:", error);
-        console.error("[InvestigationsPage] Error message:", error.message);
-        console.error("[InvestigationsPage] Error stack:", error.stack);
+        console.error("[InvestigationsPage] Error during media deletion process. Full error object:", error);
         toast({
           variant: "destructive",
           title: "Erro Inesperado na Remoção de Mídia",
@@ -323,8 +329,6 @@ export default function InvestigationsPage() {
       }
     } catch (error: any) {
       console.error("[InvestigationsPage] Critical error calling deleteInvestigation server action. Full error object:", error);
-      console.error("[InvestigationsPage] Error message:", error.message);
-      console.error("[InvestigationsPage] Error stack:", error.stack);
       toast({
         variant: "destructive",
         title: "Erro Crítico ao Remover Investigação",
@@ -367,7 +371,7 @@ export default function InvestigationsPage() {
     if (isImage) {
       return (
         <a href={url} target="_blank" rel="noopener noreferrer" className="block relative w-full h-32 overflow-hidden rounded group shadow">
-          <Image src={url} alt="Mídia da investigação" layout="fill" objectFit="cover" className="transition-transform duration-300 group-hover:scale-105" />
+          <NextImage src={url} alt="Mídia da investigação" layout="fill" objectFit="cover" className="transition-transform duration-300 group-hover:scale-105" />
            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 flex items-center justify-center transition-opacity duration-300">
             <ImageIcon className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </div>
@@ -387,9 +391,18 @@ export default function InvestigationsPage() {
         </div>
       );
     }
+    // Fallback for other file types or if type detection fails
+    const fileName = (() => {
+        try {
+            return new URL(url).pathname.split('/').pop() || 'Link de Mídia';
+        } catch {
+            return 'Link de Mídia';
+        }
+    })();
+
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline break-all flex items-center p-2 bg-slate-50 rounded shadow-sm">
-        <LinkIcon className="h-4 w-4 mr-1.5 shrink-0" /> {new URL(url).pathname.split('/').pop()?.substring(0,30) || 'Link de Mídia'}...
+        <LinkIcon className="h-4 w-4 mr-1.5 shrink-0" /> {fileName.substring(0,30)}{fileName.length > 30 ? '...' : ''}
       </a>
     );
   };
@@ -399,7 +412,7 @@ export default function InvestigationsPage() {
     <div className="space-y-8">
       <PageHeader
         title="Gerenciamento de Investigações (Supabase)"
-        description="Adicione, visualize e gerencie as investigações da DIVECAR Osasco com Supabase."
+        description="Adicione, visualize e gerencie as investigações da DIVECAR Osasco com Supabase. Uploads de mídia são feitos diretamente pelo cliente."
         icon={FolderSearch}
       />
 
@@ -407,7 +420,7 @@ export default function InvestigationsPage() {
         <div className="flex items-center space-x-2">
           <AlertTriangle className="h-5 w-5 text-yellow-500" />
           <p className="text-sm text-muted-foreground">
-            <strong>Nota:</strong> Certifique-se de que seu projeto Supabase está configurado com a tabela 'investigations' (RLS para SELECT, INSERT, UPDATE, DELETE), o bucket 'investigationmedia' (Políticas de Storage para upload/leitura/delete), e as variáveis de ambiente corretas.
+            <strong>Nota:</strong> Uploads de mídia agora são feitos diretamente do seu navegador para o Supabase Storage. Certifique-se de que suas políticas do bucket 'investigationmedia' permitem INSERT para 'anon' (ou 'authenticated' se aplicável).
           </p>
         </div>
       </Card>
@@ -420,7 +433,7 @@ export default function InvestigationsPage() {
               setShowForm(true);
             }}
             size="lg"
-            disabled={isLoading || isSubmitting}
+            disabled={isLoading || isSubmitting || isUploading}
           >
             <PlusCircle className="mr-2 h-5 w-5" /> Nova Investigação
           </Button>
@@ -439,7 +452,7 @@ export default function InvestigationsPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <Label htmlFor="title">Título da Investigação</Label>
-                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Investigação Furto Veículo Bairro Centro" required disabled={isSubmitting} />
+                <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex: Investigação Furto Veículo Bairro Centro" required disabled={isSubmitting || isUploading} />
               </div>
 
               {editingInvestigation && (
@@ -456,7 +469,7 @@ export default function InvestigationsPage() {
                     <Button
                       variant={"outline"}
                       className={`w-full justify-start text-left font-normal ${!occurrenceDate && "text-muted-foreground"}`}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || isUploading}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {occurrenceDate ? format(occurrenceDate, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
@@ -469,7 +482,7 @@ export default function InvestigationsPage() {
                       onSelect={setOccurrenceDate}
                       initialFocus
                       locale={ptBR}
-                      disabled={(date) => date > new Date() || date < new Date("1900-01-01") || isSubmitting}
+                      disabled={(date) => date > new Date() || date < new Date("1900-01-01") || isSubmitting || isUploading}
                     />
                   </PopoverContent>
                 </Popover>
@@ -477,15 +490,15 @@ export default function InvestigationsPage() {
 
               <div>
                 <Label htmlFor="description">Descrição Detalhada</Label>
-                <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes sobre o caso, ocorrência inicial, etc." rows={4} disabled={isSubmitting} />
+                <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalhes sobre o caso, ocorrência inicial, etc." rows={4} disabled={isSubmitting || isUploading} />
               </div>
               <div>
                 <Label htmlFor="assignedInvestigator">Investigador Responsável</Label>
-                <Input id="assignedInvestigator" value={assignedInvestigator} onChange={(e) => setAssignedInvestigator(e.target.value)} placeholder="Nome do investigador" required disabled={isSubmitting} />
+                <Input id="assignedInvestigator" value={assignedInvestigator} onChange={(e) => setAssignedInvestigator(e.target.value)} placeholder="Nome do investigador" required disabled={isSubmitting || isUploading} />
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>
-                <Select value={status} onValueChange={(value: Investigation['status']) => setStatus(value)} disabled={isSubmitting}>
+                <Select value={status} onValueChange={(value: Investigation['status']) => setStatus(value)} disabled={isSubmitting || isUploading}>
                   <SelectTrigger id="status">
                     <SelectValue placeholder="Selecione o status" />
                   </SelectTrigger>
@@ -654,4 +667,3 @@ export default function InvestigationsPage() {
     </div>
   );
 }
-

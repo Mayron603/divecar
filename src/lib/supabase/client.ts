@@ -1,9 +1,10 @@
+
 // src/lib/supabase/client.ts
 // This client is for use in Browser/Client Components
 import { createBrowserClient } from "@supabase/ssr";
 
 // Define a function to create the browser client
-export const createSupabaseBrowserClient = () => {
+export const createSupabaseBrowserClient = () => { // Renamed for clarity
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

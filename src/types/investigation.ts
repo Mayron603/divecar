@@ -1,5 +1,5 @@
 
-import type { Timestamp } from 'firebase/firestore'; // Timestamp ainda é usado em InvestigationInput para consistência com o que o Firestore espera na escrita inicial
+import type { Timestamp } from 'firebase/firestore';
 
 export interface Investigation {
   id: string; // Firestore document ID
@@ -7,15 +7,20 @@ export interface Investigation {
   description: string;
   assignedInvestigator: string;
   status: 'Aberta' | 'Em Andamento' | 'Concluída' | 'Arquivada';
-  creationDate: string; // Alterado de Timestamp para string (ISO string)
-  roNumber?: string;
+  creationDate: string; // ISO string
+  roNumber: string; // Gerado automaticamente, não mais opcional
+  occurrenceDate?: string; // ISO string, opcional
+  mediaUrls?: string[]; // Array de URLs para imagens/vídeos
 }
 
-export interface InvestigationInput { // Para criação, sem ID e com data como Date
+export interface InvestigationInput {
   title: string;
   description: string;
   assignedInvestigator: string;
   status: 'Aberta' | 'Em Andamento' | 'Concluída' | 'Arquivada';
-  creationDate?: Timestamp; // Firestore serverTimestamp será usado, mas mantendo para referência
-  roNumber?: string;
+  creationDate?: Timestamp; // Firestore serverTimestamp será usado
+  roNumber?: string; // Será gerado pelo backend/service
+  occurrenceDate?: string; // ISO string
+  mediaUrls?: string[];
 }
+

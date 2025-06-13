@@ -38,9 +38,9 @@ import {
 } from "@/components/ui/alert-dialog";
 
 
-const SUSPICIOUS_VEHICLE_PHOTOS_BUCKET = 'suspiciousvehiclephotos'; // Updated bucket name
-const PASSWORD_FOR_CREATE_SUSPICIOUS = "suspeito_criar123";
-const PASSWORD_FOR_DELETE_SUSPICIOUS = "suspeito_apagar789";
+const SUSPICIOUS_VEHICLE_PHOTOS_BUCKET = 'suspiciousvehiclephotos';
+const PASSWORD_FOR_CREATE_SUSPICIOUS = "Mayr0n@2025!";
+const PASSWORD_FOR_DELETE_SUSPICIOUS = "Mayr0n*19@X!";
 
 
 const getErrorMessage = (error: any): string => {
@@ -213,7 +213,7 @@ export default function SuspiciousVehiclesPage() {
             finalPhotoUrl = publicUrlData.publicUrl;
             if (editingVehicle && editingVehicle.photoUrl && editingVehicle.photoUrl !== finalPhotoUrl) {
                 console.log(`[SuspiciousVehiclesPage] New photo uploaded for editing vehicle. Deleting old photo: ${editingVehicle.photoUrl}`);
-                await deleteFileFromSupabaseStorageUrl(editingVehicle.photoUrl); // Removed bucket name, service handles it
+                await deleteFileFromSupabaseStorageUrl(editingVehicle.photoUrl);
             }
           } else {
             console.error(`[SuspiciousVehiclesPage] Client-side upload: Failed to get public URL for ${uploadData.path}`);
@@ -268,9 +268,15 @@ export default function SuspiciousVehiclesPage() {
       return;
     }
 
-    setPasswordDialogType('create');
-    setFormSubmitPendingData(() => executeSubmitVehicle); 
-    setShowPasswordDialog(true);
+    if (editingVehicle) {
+      // If editing, execute submit directly without password
+      await executeSubmitVehicle();
+    } else {
+      // If creating a new vehicle, prompt for password
+      setPasswordDialogType('create');
+      setFormSubmitPendingData(() => executeSubmitVehicle); 
+      setShowPasswordDialog(true);
+    }
   };
 
   const handleEdit = (vehicle: SuspiciousVehicle) => {
@@ -294,7 +300,7 @@ export default function SuspiciousVehiclesPage() {
     setIsSubmitting(true); 
     try {
       console.log(`[SuspiciousVehiclesPage] Calling deleteFileFromSupabaseStorageUrl for URL: ${existingPhotoUrl}`);
-      const deleteResponse = await deleteFileFromSupabaseStorageUrl(existingPhotoUrl); // Removed bucket name
+      const deleteResponse = await deleteFileFromSupabaseStorageUrl(existingPhotoUrl);
       console.log("[SuspiciousVehiclesPage] Response from deleteFileFromSupabaseStorageUrl server action:", deleteResponse);
 
       if (!deleteResponse.success) {
@@ -709,3 +715,4 @@ export default function SuspiciousVehiclesPage() {
     </div>
   );
 }
+

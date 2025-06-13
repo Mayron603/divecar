@@ -7,6 +7,7 @@ import {
   getFirestore,
   collection,
   addDoc,
+  setDoc, // Import setDoc
   getDocs,
   updateDoc,
   deleteDoc,
@@ -23,21 +24,23 @@ const db = getFirestore(app);
 const investigationsCollectionRef = collection(db, 'investigations');
 
 export async function addInvestigation(
-  investigationData: Omit<InvestigationInput, 'creationDate' | 'id' | 'roNumber'>
+  investigationData: Omit<InvestigationInput, 'creationDate' | 'id' | 'roNumber'>,
+  idToUse: string // Receive the pre-generated ID
 ): Promise<string> {
   try {
-    // Gerar RO sequencial (abordagem simples, veja aviso no chat)
     const snapshot = await getCountFromServer(investigationsCollectionRef);
     const count = snapshot.data().count;
     const newRoNumber = `${count + 1}.0`;
 
-    const docRef = await addDoc(investigationsCollectionRef, {
+    const investigationDocRef = doc(db, 'investigations', idToUse); // Use the pre-generated ID
+
+    await setDoc(investigationDocRef, { // Use setDoc with the pre-generated ID
       ...investigationData,
       roNumber: newRoNumber,
       creationDate: serverTimestamp(),
-      mediaUrls: investigationData.mediaUrls || [], // Garante que é um array
+      mediaUrls: investigationData.mediaUrls || [],
     });
-    return docRef.id;
+    return idToUse; // Return the ID used
   } catch (error) {
     console.error("Error adding investigation: ", error);
     throw new Error("Failed to add investigation.");
@@ -57,7 +60,7 @@ export async function getInvestigations(): Promise<Investigation[]> {
         description: data.description,
         assignedInvestigator: data.assignedInvestigator,
         status: data.status,
-        roNumber: data.roNumber || 'N/A', // Fallback se não existir
+        roNumber: data.roNumber || 'N/A', 
         creationDate: creationDateTimestamp ? creationDateTimestamp.toDate().toISOString() : new Date().toISOString(),
         occurrenceDate: data.occurrenceDate || undefined,
         mediaUrls: data.mediaUrls || [],
@@ -72,11 +75,10 @@ export async function getInvestigations(): Promise<Investigation[]> {
 export async function updateInvestigation(id: string, updates: Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>>): Promise<void> {
   try {
     const investigationDocRef = doc(db, 'investigations', id);
-    // RO Number não deve ser atualizado aqui
     const { roNumber, ...validUpdates } = updates as any; 
     await updateDoc(investigationDocRef, {
         ...validUpdates,
-        mediaUrls: updates.mediaUrls || [], // Garante que é um array
+        mediaUrls: updates.mediaUrls || [], 
     });
   } catch (error) {
     console.error("Error updating investigation: ", error);

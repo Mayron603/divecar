@@ -38,7 +38,7 @@ export default function InvestigationsPage() {
       toast({
         variant: "destructive",
         title: "Erro ao Carregar Investigações",
-        description: "Não foi possível buscar os dados do Firestore. Verifique sua configuração do Firebase.",
+        description: "Não foi possível buscar os dados do Firestore. Verifique sua configuração do Firebase e regras de segurança.",
       });
       console.error(error);
     } finally {
@@ -57,8 +57,8 @@ export default function InvestigationsPage() {
     setStatus('Aberta');
     setRoNumber('');
     setEditingInvestigation(null);
-    setShowForm(false);
     setIsSubmitting(false);
+    // setShowForm(false); // Removido daqui
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -90,16 +90,17 @@ export default function InvestigationsPage() {
         await addInvestigation(investigationData);
         toast({ title: "Investigação Adicionada", description: `"${investigationData.title}" foi criada.` });
       }
-      resetForm();
+      setShowForm(false); // Esconde o formulário após sucesso
+      resetForm();       // Limpa os campos e estado de edição
       fetchInvestigations(); // Re-fetch para atualizar a lista
     } catch (error) {
       console.error(error);
       toast({
         variant: "destructive",
         title: "Erro ao Salvar",
-        description: "Não foi possível salvar a investigação.",
+        description: "Não foi possível salvar a investigação. Verifique o console para mais detalhes.",
       });
-      setIsSubmitting(false);
+      setIsSubmitting(false); // Garante que isSubmitting seja false em caso de erro
     }
   };
 
@@ -110,13 +111,14 @@ export default function InvestigationsPage() {
     setAssignedInvestigator(investigation.assignedInvestigator);
     setStatus(investigation.status);
     setRoNumber(investigation.roNumber || '');
-    setShowForm(true);
+    setShowForm(true); // Mostra o formulário para edição
   };
 
   const handleDelete = async (id: string, investigationTitle: string) => {
+    setIsSubmitting(true); // Desabilita botões durante a exclusão
     try {
       await deleteInvestigation(id);
-      toast({ title: "Investigação Removida", description: `"${investigationTitle}" foi removida.`, variant: "destructive" });
+      toast({ title: "Investigação Removida", description: `"${investigationTitle}" foi removida.`, variant: "default" }); // Mudado para default para diferenciar de erros
       fetchInvestigations(); // Re-fetch para atualizar a lista
     } catch (error) {
       console.error(error);
@@ -125,6 +127,8 @@ export default function InvestigationsPage() {
         title: "Erro ao Remover",
         description: "Não foi possível remover a investigação.",
       });
+    } finally {
+      setIsSubmitting(false); // Reabilita botões
     }
   };
 
@@ -144,7 +148,15 @@ export default function InvestigationsPage() {
 
   const formatDate = (timestamp: Timestamp | undefined) => {
     if (!timestamp) return 'Data desconhecida';
-    return timestamp.toDate().toLocaleDateString('pt-BR');
+    // Verifica se o timestamp já é um objeto Date (após a primeira serialização do Firestore)
+    if (timestamp instanceof Date) {
+      return timestamp.toLocaleDateString('pt-BR');
+    }
+    // Verifica se é um objeto Timestamp do Firestore
+    if (typeof timestamp.toDate === 'function') {
+      return timestamp.toDate().toLocaleDateString('pt-BR');
+    }
+    return 'Data inválida';
   };
 
   return (
@@ -157,7 +169,14 @@ export default function InvestigationsPage() {
 
       {!showForm && (
         <div className="flex justify-center mb-8">
-          <Button onClick={() => { setShowForm(true); resetForm(); }} size="lg" disabled={isLoading}>
+          <Button 
+            onClick={() => { 
+              resetForm(); // Primeiro limpa qualquer estado de edição/campos
+              setShowForm(true); // Então mostra o formulário
+            }} 
+            size="lg" 
+            disabled={isLoading || isSubmitting} // Desabilita se carregando ou submetendo algo
+          >
             <PlusCircle className="mr-2 h-5 w-5" /> Nova Investigação
           </Button>
         </div>
@@ -204,7 +223,17 @@ export default function InvestigationsPage() {
                 </Select>
               </div>
               <div className="flex justify-end space-x-3">
-                <Button type="button" variant="outline" onClick={resetForm} disabled={isSubmitting}>Cancelar</Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    resetForm();      // Limpa os campos
+                    setShowForm(false); // Esconde o formulário
+                  }} 
+                  disabled={isSubmitting}
+                >
+                  Cancelar
+                </Button>
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {editingInvestigation ? 'Salvar Alterações' : 'Adicionar Investigação'}
@@ -235,12 +264,12 @@ export default function InvestigationsPage() {
       {!isLoading && investigations.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
           {investigations.map((inv) => (
-            <Card key={inv.id} className={`shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col border-l-4 ${statusColors[inv.status].split(' ')[2]}`}>
+            <Card key={inv.id} className={`shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col border-l-4 ${statusColors[inv.status]?.split(' ')[2] ?? 'border-gray-300'}`}>
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-xl text-primary mb-1">{inv.title}</CardTitle>
-                  <span className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center ${statusColors[inv.status]}`}>
-                    {statusIcons[inv.status]}
+                  <span className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center ${statusColors[inv.status] ?? 'bg-gray-100 text-gray-700 border-gray-300'}`}>
+                    {statusIcons[inv.status] ?? <ListChecks className="h-4 w-4 mr-1.5" />}
                     {inv.status}
                   </span>
                 </div>
@@ -276,3 +305,5 @@ export default function InvestigationsPage() {
     </div>
   );
 }
+
+    

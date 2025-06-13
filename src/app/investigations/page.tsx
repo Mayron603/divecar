@@ -110,7 +110,7 @@ export default function InvestigationsPage() {
                 assignedInvestigator,
                 status,
                 occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
-                mediaUrls: [], // Initial record starts with no media
+                mediaUrls: [], 
             };
             newInvestigationBase = await addInvestigation(initialPayload);
             currentInvestigationId = newInvestigationBase.id;
@@ -145,21 +145,36 @@ export default function InvestigationsPage() {
 
       try {
         console.log("[InvestigationsPage] Calling uploadFileToSupabaseStorage server action...");
-        const uploadedUrls = await uploadFileToSupabaseStorage(formData);
-        finalMediaUrls = [...finalMediaUrls, ...uploadedUrls];
-        toast({ title: "Mídias Enviadas", description: `${uploadedUrls.length} arquivo(s) de mídia foram processados.`});
-      } catch (error: any) {
-        console.error("[InvestigationsPage] Error during file upload process to Supabase Storage. Full error object:", error);
-        console.error("[InvestigationsPage] Error message from upload process:", error.message);
-        console.error("[InvestigationsPage] Error stack from upload process:", error.stack);
+        const uploadResponse = await uploadFileToSupabaseStorage(formData);
+        
+        if (uploadResponse.success && uploadResponse.urls) {
+          finalMediaUrls = [...finalMediaUrls, ...uploadResponse.urls];
+          toast({ title: "Mídias Enviadas", description: `${uploadResponse.urls.length} arquivo(s) de mídia foram processados.`});
+        } else {
+          // Error occurred during upload, message should be in uploadResponse.error
+          console.error("[InvestigationsPage] Error during file upload process to Supabase Storage. Full error object:", uploadResponse.error);
+          console.error("[InvestigationsPage] Error message from upload process:", uploadResponse.error);
+          toast({
+            variant: "destructive",
+            title: "Erro no Upload de Mídia",
+            description: uploadResponse.error || "Não foi possível carregar uma ou mais mídias. Verifique o console do servidor e suas políticas do Supabase Storage.",
+          });
+          setIsUploading(false); 
+          setIsSubmitting(false);
+          return; 
+        }
+      } catch (error: any) { // Catch for unexpected errors if uploadFileToSupabaseStorage itself throws (shouldn't with new structure)
+        console.error("[InvestigationsPage] UNEXPECTED Error calling uploadFileToSupabaseStorage server action. Full error object:", error);
+        console.error("[InvestigationsPage] UNEXPECTED Error message from upload process:", error.message);
+        console.error("[InvestigationsPage] UNEXPECTED Error stack from upload process:", error.stack);
         toast({
           variant: "destructive",
-          title: "Erro no Upload de Mídia",
-          description: error.message || "Não foi possível carregar uma ou mais mídias. Verifique o console do servidor e suas políticas do Supabase Storage.",
+          title: "Erro Inesperado no Upload",
+          description: error.message || "Ocorreu um erro inesperado ao tentar enviar mídias. Verifique o console.",
         });
         setIsUploading(false); 
         setIsSubmitting(false);
-        return; 
+        return;
       } finally {
         setIsUploading(false);
       }
@@ -210,9 +225,13 @@ export default function InvestigationsPage() {
         console.warn("[InvestigationsPage] Attempted to delete media for a non-editing investigation.");
         return;
     }
-    setIsSubmitting(true); // Consider a specific 'isDeletingMedia' state
+    setIsSubmitting(true); 
     try {
-      await deleteFileFromSupabaseStorageUrl(mediaUrlToDelete);
+      const deleteResponse = await deleteFileFromSupabaseStorageUrl(mediaUrlToDelete);
+      if (!deleteResponse.success) {
+        throw new Error(deleteResponse.error || "Falha ao remover mídia do storage.");
+      }
+
       const updatedMediaUrls = existingMediaUrls.filter(url => url !== mediaUrlToDelete);
       setExistingMediaUrls(updatedMediaUrls);
 
@@ -221,7 +240,6 @@ export default function InvestigationsPage() {
 
       toast({ title: "Mídia Removida", description: "O arquivo e sua referência foram removidos." });
       setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
-      // fetchInvestigations(); // Re-fetch to update the card if it was showing this media - already done if form closes
     } catch (error: any) {
         console.error("[InvestigationsPage] Error deleting media from Supabase or updating record:", error);
         toast({

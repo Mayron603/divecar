@@ -1,3 +1,4 @@
+
 import { HeroSection } from '@/components/sections/hero-section';
 import { InfoCard } from '@/components/common/info-card';
 import { Users, ScrollText, Info, Building, Video, Shirt } from 'lucide-react'; // Changed ShieldCheck to Building
@@ -64,9 +65,9 @@ export default function HomePage() {
                 muted
                 playsInline 
                 preload="metadata"
-                aria-label="Vídeo institucional da Polícia Civil - Uniformes"
+                aria-label="Vídeo institucional da Polícia Civil - Identidade Visual"
               >
-                <source src="/videos/PMESP.mp4" type="video/mp4" /> {/* Manter o vídeo por enquanto, mas idealmente seria trocado */}
+                <source src="/videos/divecar2.mp4" type="video/mp4" />
                 Seu navegador não suporta o elemento de vídeo.
               </video>
             </CardContent>

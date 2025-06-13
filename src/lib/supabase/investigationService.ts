@@ -6,7 +6,7 @@ import { supabase } from './client';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
 
 const INVESTIGATIONS_TABLE = 'investigations';
-const INVESTIGATION_MEDIA_BUCKET = 'investigationmedia';
+const INVESTIGATION_MEDIA_BUCKET = 'investigationmedia'; // Corrected bucket name
 
 // Helper to get public URL for Supabase Storage
 const getPublicUrl = (filePath: string): string | null => {
@@ -20,11 +20,12 @@ const getPublicUrl = (filePath: string): string | null => {
 };
 
 const formatSupabaseError = (error: any, functionName: string): string => {
-    console.error(`[SupabaseService][${functionName}] Original error:`, error);
+    console.error(`[SupabaseService][${functionName}] Original error:`, error); // Log the original complex error
     let message = `Error in ${functionName}.`;
     if (error instanceof Error && typeof error.message === 'string' && error.message.trim()) {
         message = error.message;
     } else if (error && typeof error.message === 'string' && error.message.trim()) {
+        // This handles Supabase error objects which aren't instanceof Error
         message = error.message;
         if (typeof error.details === 'string' && error.details.trim()) {
             message += ` Details: ${error.details}`;
@@ -37,7 +38,7 @@ const formatSupabaseError = (error: any, functionName: string): string => {
     } else {
         message = `An unexpected error occurred in ${functionName}. Check server logs for full details.`;
     }
-    console.error(`[SupabaseService][${functionName}] Throwing client-facing error:`, message);
+    console.error(`[SupabaseService][${functionName}] Formatted client-facing error message: "${message}"`);
     return message;
 };
 
@@ -53,7 +54,8 @@ export async function addInvestigation(
 
     if (countError) {
       console.error(`[SupabaseService][${functionName}] Error fetching investigation count for R.O. number:`, countError);
-      throw new Error(`Failed to fetch investigation count. Supabase message: ${countError.message}`);
+      // Let formatSupabaseError handle this for consistent error propagation
+      throw countError;
     }
     const newRoNumber = `${(count || 0) + 1}.0`;
     console.warn(`[SupabaseService][${functionName}] Using client-side count for R.O. number generation. This may not be robust in concurrent scenarios. Current count: ${count}, New R.O.: ${newRoNumber}`);
@@ -65,7 +67,7 @@ export async function addInvestigation(
       status: investigationData.status,
       occurrence_date: investigationData.occurrenceDate,
       ro_number: newRoNumber,
-      media_urls: investigationData.mediaUrls || [],
+      media_urls: investigationData.mediaUrls || [], // Initialize with empty array if not provided
     };
     
     console.log(`[SupabaseService][${functionName}] Attempting to insert investigation with payload:`, JSON.stringify(payloadToInsert, null, 2));
@@ -77,6 +79,7 @@ export async function addInvestigation(
       .single();
 
     if (insertError || !insertedData) {
+      // Let formatSupabaseError handle this
       throw insertError || new Error('No data returned from insert operation.');
     }
     
@@ -182,6 +185,7 @@ export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
           console.warn(`[SupabaseService][${functionName}] Failed to delete media file ${mediaUrlsToDelete[index]} during investigation deletion:`, result.reason);
+          // Do not re-throw here to allow DB deletion attempt
         } else {
           console.log(`[SupabaseService][${functionName}] Successfully processed deletion for media file ${mediaUrlsToDelete[index]}.`);
         }
@@ -195,7 +199,7 @@ export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string
       .eq('id', id);
 
     if (deleteDbError) {
-      throw deleteDbError;
+      throw deleteDbError; // Let formatSupabaseError handle this in the outer catch
     }
     console.log(`[SupabaseService][${functionName}] Investigation record ${id} deleted successfully from database.`);
   } catch (error: any) {
@@ -208,17 +212,15 @@ export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string
 
 export async function uploadFileToSupabaseStorage(file: File, investigationId: string): Promise<string> {
   const functionName = "uploadFileToSupabaseStorage";
-  console.log(`[SupabaseStorageService][${functionName}] Called for file: ${file.name}, investigationId: ${investigationId}`);
+  console.log(`[SupabaseStorageService][${functionName}] Called for file: ${file.name} (size: ${file.size}, type: ${file.type}), investigationId: ${investigationId}`);
   try {
     if (!investigationId || typeof investigationId !== 'string' || investigationId.trim() === '') {
-        const invalidIdError = `[SupabaseStorageService][${functionName}] Invalid investigationId for upload. Must be a non-empty string. Received: ${investigationId}`;
-        console.error(invalidIdError);
-        throw new Error(invalidIdError);
+        const invalidIdError = `Invalid investigationId for upload. Must be a non-empty string. Received: ${investigationId}`;
+        console.error(`[SupabaseStorageService][${functionName}] ${invalidIdError}`);
+        throw new Error(invalidIdError); // This is a simple error, should be serializable
     }
 
     const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-    // Ensure the path within the bucket is just investigationId/fileName, without 'public/' prefix here
-    // The 'public/' part is handled by how Supabase constructs public URLs, not in the storage path itself.
     const filePath = `${investigationId}/${fileName}`; 
 
     console.log(`[SupabaseStorageService][${functionName}] Attempting to upload ${file.name} to path: ${filePath} in bucket ${INVESTIGATION_MEDIA_BUCKET}`);
@@ -231,32 +233,48 @@ export async function uploadFileToSupabaseStorage(file: File, investigationId: s
       });
 
     if (uploadError) {
+      // This will be caught by the main catch block and formatted
       throw uploadError;
     }
 
     if (!data || !data.path) {
-       const noPathError = `[SupabaseStorageService][${functionName}] Supabase Storage upload error for ${filePath}: No path returned from Supabase.`;
-       console.error(noPathError);
-       throw new Error(noPathError);
+       const noPathError = `Supabase Storage upload error for ${filePath}: No path returned from Supabase.`;
+       console.error(`[SupabaseStorageService][${functionName}] ${noPathError}`);
+       throw new Error(noPathError); // Simple error
     }
 
     const publicURL = getPublicUrl(data.path);
     if (!publicURL) {
-      console.error(`[SupabaseStorageService][${functionName}] Could not get public URL for ${data.path} in bucket ${INVESTIGATION_MEDIA_BUCKET}. Attempting to remove orphaned file.`);
+      const getUrlErrorMsg = `Failed to get public URL for ${file.name} after upload. Supabase path: ${data.path}`;
+      console.error(`[SupabaseStorageService][${functionName}] ${getUrlErrorMsg}. Attempting to remove orphaned file.`);
       try {
         await supabase.storage.from(INVESTIGATION_MEDIA_BUCKET).remove([data.path]);
         console.log(`[SupabaseStorageService][${functionName}] Orphaned file ${data.path} removed successfully.`);
       } catch (removeError: any) {
-        console.warn(`[SupabaseStorageService][${functionName}] Failed to remove orphaned file ${data.path} from bucket ${INVESTIGATION_MEDIA_BUCKET}:`, removeError.message);
+        console.warn(`[SupabaseStorageService][${functionName}] Failed to remove orphaned file ${data.path} from bucket ${INVESTIGATION_MEDIA_BUCKET}:`, removeError.message || removeError);
       }
-      throw new Error(`Failed to get public URL for ${file.name} after upload.`);
+      throw new Error(getUrlErrorMsg); // Simple error
     }
     
     console.log(`[SupabaseStorageService][${functionName}] Upload of ${file.name} successful. Public URL: ${publicURL}`);
     return publicURL;
 
   } catch (error: any) {
-    throw new Error(formatSupabaseError(error, functionName));
+    // Enhanced catch block for uploadFileToSupabaseStorage
+    const originalErrorType = Object.prototype.toString.call(error);
+    console.error(`[SupabaseStorageService][${functionName}] CAUGHT ERROR. Type: ${originalErrorType}. Original error object:`, error);
+    
+    let clientMessage = `Upload failed for ${file ? file.name : 'unknown file'}. Check server logs for details.`;
+    if (error && typeof error.message === 'string' && error.message.trim()) {
+      clientMessage = `Upload error: ${error.message}`;
+    } else if (typeof error === 'string' && error.trim()) {
+      clientMessage = `Upload error: ${error}`;
+    } else if (error && error.details && typeof error.details === 'string') { // Catch Supabase specific details
+      clientMessage = `Upload error: ${error.details}`;
+    }
+    
+    console.error(`[SupabaseStorageService][${functionName}] Throwing new Error with message: "${clientMessage}"`);
+    throw new Error(clientMessage); // Throw a very simple, new Error object.
   }
 }
 
@@ -266,60 +284,74 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string): Promise
   try {
     if (!fileUrl || typeof fileUrl !== 'string') {
       console.warn(`[SupabaseStorageService][${functionName}] Invalid fileUrl provided for deletion:`, fileUrl);
-      return; // Not an error, just can't proceed
+      return; 
     }
     
-    let filePathKey = ''; // This is the key/path of the object within the bucket
+    let filePathKey = ''; 
     try {
       const urlObject = new URL(fileUrl);
-      // Example public URL: https://<project_ref>.supabase.co/storage/v1/object/public/<bucket_name>/<folder_path>/<file_name.ext>
-      // The path part we need is after `/public/<bucket_name>/` or `/object/public/<bucket_name>`
       const pathSegments = urlObject.pathname.split('/');
-      const bucketNameIndex = pathSegments.indexOf(INVESTIGATION_MEDIA_BUCKET);
+      // More robustly find the bucket name and slice after it.
+      // e.g. /storage/v1/object/public/investigationmedia/investigation_id/file.png
+      let bucketNameIndex = pathSegments.indexOf(INVESTIGATION_MEDIA_BUCKET);
 
+      // Check if path includes /public/ before bucket name (common in public URLs)
+      if (bucketNameIndex === -1 && pathSegments.includes('public')) {
+          const publicIndex = pathSegments.indexOf('public');
+          if (pathSegments[publicIndex + 1] === INVESTIGATION_MEDIA_BUCKET) {
+              bucketNameIndex = publicIndex + 1;
+          }
+      }
+      
       if (bucketNameIndex !== -1 && bucketNameIndex < pathSegments.length -1) {
         filePathKey = decodeURIComponent(pathSegments.slice(bucketNameIndex + 1).join('/'));
       } else {
-        // Fallback for slightly different URL structures or if bucket name is not in path as expected
-        // This might happen if the URL is not a direct public URL from Supabase but constructed differently.
-        // A more robust solution might involve knowing the exact base path of your storage URLs.
-        // For now, let's try a common pattern assuming /storage/v1/object/public/bucket_name/ is present
-        const objectPublicPath = `/storage/v1/object/public/${INVESTIGATION_MEDIA_BUCKET}/`;
-        if (urlObject.pathname.includes(objectPublicPath)) {
-            filePathKey = decodeURIComponent(urlObject.pathname.substring(urlObject.pathname.indexOf(objectPublicPath) + objectPublicPath.length));
-        } else {
-             console.warn(`[SupabaseStorageService][${functionName}] Could not reliably extract file path from URL structure for deletion: ${fileUrl}. Expected bucket '${INVESTIGATION_MEDIA_BUCKET}' in path.`);
-             return; // Cannot proceed if path is not extractable
-        }
+         console.warn(`[SupabaseStorageService][${functionName}] Could not reliably extract file path from URL structure for deletion: ${fileUrl}. Expected bucket '${INVESTIGATION_MEDIA_BUCKET}' in path segments: ${pathSegments.join(', ')}`);
+         // Attempt a more direct extraction if the above fails, assuming common URL structure
+         const searchString = `/object/public/${INVESTIGATION_MEDIA_BUCKET}/`;
+         const searchStringIndex = urlObject.pathname.indexOf(searchString);
+         if (searchStringIndex !== -1) {
+            filePathKey = decodeURIComponent(urlObject.pathname.substring(searchStringIndex + searchString.length));
+         } else {
+            console.error(`[SupabaseStorageService][${functionName}] Path extraction completely failed for ${fileUrl}. Cannot proceed with deletion.`);
+            return;
+         }
       }
     } catch (e: any) {
-      console.warn(`[SupabaseStorageService][${functionName}] Invalid URL format, cannot parse for deletion: ${fileUrl}`, e.message);
-      return; // Cannot proceed if URL is invalid
+      console.warn(`[SupabaseStorageService][${functionName}] Invalid URL format, cannot parse for deletion: ${fileUrl}`, e.message || e);
+      return; 
     }
 
     if (!filePathKey || filePathKey.trim() === '') {
       console.warn(`[SupabaseStorageService][${functionName}] Extracted file path is empty from URL, cannot delete: ${fileUrl}`);
-      return; // Cannot proceed
+      return; 
     }
 
     console.log(`[SupabaseStorageService][${functionName}] Attempting to delete file from path: '${filePathKey}' in bucket '${INVESTIGATION_MEDIA_BUCKET}'`);
-    const { data, error } = await supabase.storage
+    const { data, error: deleteStorageError } = await supabase.storage
       .from(INVESTIGATION_MEDIA_BUCKET)
       .remove([filePathKey]);
 
-    if (error) {
-      // Common error: "The resource was not found" (e.g. if already deleted or path is wrong)
-      // Supabase storage client might return error with a specific status or message for "Not Found"
-      if (error.message && (error.message.toLowerCase().includes("not found") || (error as any).statusCode === 404 || (error as any).statusCode === '404')) { 
-           console.warn(`[SupabaseStorageService][${functionName}] File not found in bucket ${INVESTIGATION_MEDIA_BUCKET} at path '${filePathKey}', could not delete (Error: ${error.message})`);
-           return; // Not a critical error if file is already gone or path was slightly off due to URL parsing
+    if (deleteStorageError) {
+      if (deleteStorageError.message && (deleteStorageError.message.toLowerCase().includes("not found") || (deleteStorageError as any).statusCode === 404 || (deleteStorageError as any).statusCode === '404' || deleteStorageError.message.includes("No object exists")) ) { 
+           console.warn(`[SupabaseStorageService][${functionName}] File not found in bucket ${INVESTIGATION_MEDIA_BUCKET} at path '${filePathKey}', could not delete (Error: ${deleteStorageError.message})`);
+           return; 
       }
-      throw error; // Re-throw other errors
+      // Re-throw other errors to be caught by the main catch block and formatted
+      throw deleteStorageError;
     }
     console.log(`[SupabaseStorageService][${functionName}] File deleted successfully from bucket ${INVESTIGATION_MEDIA_BUCKET}: ${filePathKey}`, data);
   } catch (error: any) {
-    throw new Error(formatSupabaseError(error, functionName));
+    // Ensure this also throws a simple error for the client
+    const originalErrorType = Object.prototype.toString.call(error);
+    console.error(`[SupabaseStorageService][${functionName}] CAUGHT ERROR. Type: ${originalErrorType}. Original error object:`, error);
+    let clientMessage = `Failed to delete media from ${fileUrl}. Check server logs.`;
+     if (error && typeof error.message === 'string' && error.message.trim()) {
+      clientMessage = `Media deletion error: ${error.message}`;
+    } else if (typeof error === 'string' && error.trim()) {
+      clientMessage = `Media deletion error: ${error}`;
+    }
+    console.error(`[SupabaseStorageService][${functionName}] Throwing new Error with message: "${clientMessage}"`);
+    throw new Error(clientMessage);
   }
 }
-
-    

@@ -191,7 +191,7 @@ export default function SuspiciousVehiclesPage() {
           .from(SUSPICIOUS_VEHICLE_PHOTOS_BUCKET)
           .upload(filePath, file, {
             cacheControl: '3600',
-            upsert: false, // Don't upsert if editing, handle removal of old photo separately if needed
+            upsert: false, 
           });
 
         if (uploadError) {
@@ -211,7 +211,6 @@ export default function SuspiciousVehiclesPage() {
           if (publicUrlData?.publicUrl) {
             console.log(`[SuspiciousVehiclesPage] Client-side upload success for ${file.name}. URL: ${publicUrlData.publicUrl}`);
             finalPhotoUrl = publicUrlData.publicUrl;
-            // If editing and uploaded a new photo, delete the old one
             if (editingVehicle && editingVehicle.photoUrl && editingVehicle.photoUrl !== finalPhotoUrl) {
                 console.log(`[SuspiciousVehiclesPage] New photo uploaded for editing vehicle. Deleting old photo: ${editingVehicle.photoUrl}`);
                 await deleteFileFromSupabaseStorageUrl(editingVehicle.photoUrl, SUSPICIOUS_VEHICLE_PHOTOS_BUCKET);
@@ -222,7 +221,7 @@ export default function SuspiciousVehiclesPage() {
           }
         }
         setIsUploading(false);
-        if (finalPhotoUrl) {
+        if (finalPhotoUrl && selectedPhoto) { // Check selectedPhoto to ensure this toast is for a new upload
             toast({ title: "Foto Enviada", description: "Foto processada com sucesso."});
         }
       }
@@ -306,7 +305,7 @@ export default function SuspiciousVehiclesPage() {
 
       setExistingPhotoUrl(undefined); 
 
-      const updatePayload = { photoUrl: null }; // Set photoUrl to null in DB
+      const updatePayload = { photoUrl: null }; 
       console.log(`[SuspiciousVehiclesPage] Updating vehicle record ${editingVehicle.id} after photo deletion. New photoUrl: null`);
       const recordUpdateResponse = await updateSuspiciousVehicle(editingVehicle.id, updatePayload);
       console.log("[SuspiciousVehiclesPage] Response from updateSuspiciousVehicle (after photo deletion) server action:", recordUpdateResponse);
@@ -394,12 +393,45 @@ export default function SuspiciousVehiclesPage() {
     if (!dateString) return 'Data desconhecida';
     try {
       const date = new Date(dateString);
-      return includeTime ? format(date, "dd/MM/yyyy HH:mm:ss", { locale: ptBR }) : format(date, "dd/MM/yyyy", { locale: ptBR });
+      return includeTime ? format(date, "dd/MM/yyyy HH:mm", { locale: ptBR }) : format(date, "dd/MM/yyyy", { locale: ptBR });
     } catch (error) {
       console.error("Error formatting date from string:", dateString, error);
       return 'Data inválida';
     }
   };
+
+  const handleDateSelection = (selectedDay: Date | undefined) => {
+    if (!selectedDay) {
+      setSpottedDate(undefined);
+      return;
+    }
+    const currentTime = spottedDate ? { h: spottedDate.getHours(), m: spottedDate.getMinutes() } : { h: 0, m: 0 };
+    const newDateTime = new Date(
+      selectedDay.getFullYear(),
+      selectedDay.getMonth(),
+      selectedDay.getDate(),
+      currentTime.h,
+      currentTime.m
+    );
+    setSpottedDate(newDateTime);
+  };
+
+  const handleTimeSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const timeValue = e.target.value; 
+    if (!spottedDate || !timeValue) {
+      if (spottedDate && !timeValue) {
+          const resetTimeDate = new Date(spottedDate);
+          resetTimeDate.setHours(0,0,0,0);
+          setSpottedDate(resetTimeDate);
+      }
+      return;
+    }
+    const [hours, minutes] = timeValue.split(':').map(Number);
+    const newDateTime = new Date(spottedDate); 
+    newDateTime.setHours(hours, minutes, 0, 0); 
+    setSpottedDate(newDateTime);
+  };
+
 
   const renderMedia = (url: string | undefined) => {
     if (!url) return <div className="flex items-center justify-center h-32 bg-muted rounded text-muted-foreground"><ImageIcon className="h-8 w-8" /> Sem foto</div>;
@@ -416,7 +448,6 @@ export default function SuspiciousVehiclesPage() {
         </a>
       );
     }
-    // Fallback for non-image URLs, though we primarily expect images here.
     return (
       <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline break-all flex items-center p-2 bg-slate-50 rounded shadow-sm">
         <LinkIcon className="h-4 w-4 mr-1.5 shrink-0" /> Ver Arquivo
@@ -467,29 +498,38 @@ export default function SuspiciousVehiclesPage() {
                 <Input id="licensePlate" value={licensePlate} onChange={(e) => setLicensePlate(e.target.value.toUpperCase())} placeholder="Ex: BRA2E19" required disabled={isSubmitting || isUploading} />
               </div>
               <div>
-                <Label htmlFor="spottedDate">Data em que foi Visto</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={`w-full justify-start text-left font-normal ${!spottedDate && "text-muted-foreground"}`}
-                      disabled={isSubmitting || isUploading}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {spottedDate ? format(spottedDate, "PPP", { locale: ptBR }) : <span>Escolha uma data</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={spottedDate}
-                      onSelect={setSpottedDate}
-                      initialFocus
-                      locale={ptBR}
-                      disabled={(date) => date > new Date() || date < new Date("1900-01-01") || isSubmitting || isUploading}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Label htmlFor="spottedDateTime">Data e Hora em que foi Visto</Label>
+                <div className="flex gap-2 items-center">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={`flex-1 justify-start text-left font-normal ${!spottedDate && "text-muted-foreground"}`}
+                        disabled={isSubmitting || isUploading}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {spottedDate ? format(spottedDate, "dd/MM/yyyy", { locale: ptBR }) : <span>Escolha a data</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={spottedDate}
+                        onSelect={handleDateSelection}
+                        initialFocus
+                        locale={ptBR}
+                        disabled={(date) => date > new Date() || date < new Date("1900-01-01") || isSubmitting || isUploading}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <Input
+                    type="time"
+                    value={spottedDate ? format(spottedDate, "HH:mm") : ""}
+                    onChange={handleTimeSelection}
+                    className="w-[120px]"
+                    disabled={isSubmitting || isUploading || !spottedDate}
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="suspectName">Nome do Suspeito (Opcional)</Label>
@@ -602,7 +642,7 @@ export default function SuspiciousVehiclesPage() {
                 {v.spottedDate && (
                   <div className="flex items-center text-sm text-foreground pt-2">
                     <CalendarIcon className="h-4 w-4 mr-2 text-primary shrink-0" />
-                    <strong>Visto em:</strong>&nbsp;{formatDateString(v.spottedDate)}
+                    <strong>Visto em:</strong>&nbsp;{formatDateString(v.spottedDate, true)}
                   </div>
                 )}
                 {v.suspectName && (

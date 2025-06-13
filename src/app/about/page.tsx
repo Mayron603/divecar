@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LucideIcon } from 'lucide-react';
 import { Info, Target, Eye, ShieldCheck, Users2, Search } from 'lucide-react';
+import NextImage from 'next/image';
 
 interface AboutSection {
   title: string;
@@ -39,17 +40,14 @@ export default function AboutPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
         <div>
-          <video
-            className="w-full h-auto rounded-lg shadow-xl"
-            autoPlay
-            loop
-            muted
-            playsInline
-            aria-label="Vídeo institucional sobre a DIVECAR Osasco"
-          >
-            <source src="/videos/sobre_nos.mp4" type="video/mp4" />
-            Seu navegador não suporta o elemento de vídeo.
-          </video>
+          <NextImage
+            src="/videos/sobre_nos.png" // Assumindo que o arquivo está em public/videos/
+            alt="Informações sobre a DIVECAR Osasco"
+            width={600} // Placeholder width, ajuste conforme necessário
+            height={400} // Placeholder height, ajuste conforme necessário
+            className="w-full h-auto rounded-lg shadow-xl object-cover"
+            data-ai-hint="institucional equipe"
+          />
         </div>
         <div className="space-y-6">
           <h2 className="text-3xl font-headline font-semibold text-primary">Quem Somos</h2>

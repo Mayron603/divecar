@@ -23,9 +23,8 @@ import {
   deleteInvestigation,
   uploadFileToSupabaseStorage,
   deleteFileFromSupabaseStorageUrl
-} from '@/lib/supabase/investigationService'; // Updated to Supabase service
+} from '@/lib/supabase/investigationService';
 import Image from 'next/image';
-// Removed Firebase specific imports: doc, collection, getFirestore, app from firebase/config
 
 export default function InvestigationsPage() {
   const { toast } = useToast();
@@ -51,11 +50,11 @@ export default function InvestigationsPage() {
     try {
       const fetchedInvestigations = await getInvestigations();
       setInvestigations(fetchedInvestigations);
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Erro ao Carregar Investigações",
-        description: "Não foi possível buscar os dados do Supabase. Verifique sua configuração e políticas RLS.",
+        description: `Não foi possível buscar os dados do Supabase. Detalhes: ${error.message}. Verifique suas políticas RLS e a conexão.`,
       });
       console.error("Error fetching investigations from Supabase:", error);
     } finally {
@@ -79,8 +78,7 @@ export default function InvestigationsPage() {
     }
     setEditingInvestigation(null);
     setExistingMediaUrls([]);
-    setIsSubmitting(false); 
-    setIsUploading(false);
+    // Do not reset isSubmitting or isUploading here, they are managed by handleSubmit
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,34 +100,27 @@ export default function InvestigationsPage() {
     
     let currentInvestigationId = editingInvestigation?.id;
     let finalMediaUrls: string[] = [...existingMediaUrls];
-
-    // Step 1: Create/Update base investigation record (if new, to get an ID for storage paths)
-    // For Supabase, we might create the record first, then upload, then update record with URLs.
-    // Or, if editing, we already have an ID.
+    let newInvestigationBase: Investigation | null = null;
     
-    // If it's a new investigation, create the base record first to get an ID
     if (!editingInvestigation) {
         try {
-            const initialPayload: Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber' | 'mediaUrls'> & { mediaUrls?: string[] } = {
+            const initialPayload: Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber'> & { mediaUrls?: string[] } = {
                 title,
                 description,
                 assignedInvestigator,
                 status,
                 occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
-                mediaUrls: [], // Will be updated after upload
+                mediaUrls: [], 
             };
-            // The service will generate roNumber and handle created_at
-            const newInvestigationBase = await addInvestigation(initialPayload);
+            newInvestigationBase = await addInvestigation(initialPayload);
             currentInvestigationId = newInvestigationBase.id;
-             // Update the editingInvestigation state for subsequent operations if needed
-            setEditingInvestigation(newInvestigationBase); 
-            toast({ title: "Registro Base Criado", description: `R.O. ${newInvestigationBase.roNumber} iniciado.` });
+            toast({ title: "Registro Base Criado", description: `R.O. ${newInvestigationBase.roNumber} iniciado. Enviando mídias se houver...` });
         } catch (error: any) {
             console.error("Error creating initial investigation record with Supabase:", error);
             toast({
                 variant: "destructive",
                 title: "Erro ao Iniciar Investigação",
-                description: error.message || "Não foi possível criar o registro base da investigação.",
+                description: `Falha ao criar registro base: ${error.message}. Verifique o console do servidor para detalhes do Supabase.`,
             });
             setIsSubmitting(false);
             return;
@@ -143,12 +134,10 @@ export default function InvestigationsPage() {
         return;
     }
 
-
-    // Step 2: Upload new files if any
     if (selectedFiles && selectedFiles.length > 0) {
       setIsUploading(true);
       const uploadPromises = Array.from(selectedFiles).map(file => 
-        uploadFileToSupabaseStorage(file, currentInvestigationId!) // Pass currentInvestigationId
+        uploadFileToSupabaseStorage(file, currentInvestigationId!)
       );
 
       try {
@@ -169,7 +158,6 @@ export default function InvestigationsPage() {
       }
     }
 
-    // Step 3: Prepare final payload and update/create investigation record with all data
     const investigationPayload: Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>> = {
       title,
       description,
@@ -180,29 +168,22 @@ export default function InvestigationsPage() {
     };
 
     try {
-      if (editingInvestigation || currentInvestigationId) { // Should always have currentInvestigationId if new and step 1 succeeded
-        await updateInvestigation(currentInvestigationId!, investigationPayload);
-        toast({ title: "Investigação Atualizada", description: `"${investigationPayload.title}" foi atualizada.` });
-      } else {
-        // This case should ideally not be hit if step 1 for new investigations is done correctly.
-        // The addInvestigation in the service handles RO number.
-        // For safety, but this implies the above logic for new investigations needs refinement.
-        console.error("Attempting to add new investigation at final step, this might be an issue.");
-        const finalAddPayload: Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber'> = {
-            ...investigationPayload
-        } as Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber'>; // Type assertion
-        await addInvestigation(finalAddPayload);
-        toast({ title: "Investigação Adicionada", description: `"${investigationPayload.title}" foi criada.` });
-      }
+      // If it was a new investigation, the base record was already created.
+      // Now we just update it with media URLs if any new ones were uploaded,
+      // or if other fields were changed (though for new, they are set initially).
+      // The updateInvestigation function will handle this for both new (with newInvestigationBase) and existing.
+      await updateInvestigation(currentInvestigationId, investigationPayload);
+      toast({ title: editingInvestigation ? "Investigação Atualizada" : "Investigação Adicionada", description: `"${investigationPayload.title}" foi salva com sucesso.` });
+      
       setShowForm(false);
       resetForm();
       fetchInvestigations();
     } catch (error: any) {
-      console.error("Error saving investigation to Supabase:", error);
+      console.error("Error saving/updating investigation to Supabase:", error);
       toast({
         variant: "destructive",
         title: "Erro ao Salvar Investigação",
-        description: error.message || "Não foi possível salvar a investigação no Supabase. Verifique o console.",
+        description: `${error.message}. Verifique o console do servidor para detalhes do Supabase.`,
       });
     } finally {
       setIsSubmitting(false);
@@ -210,17 +191,14 @@ export default function InvestigationsPage() {
   };
 
   const handleEdit = (investigation: Investigation) => {
+    resetForm(); // Clear any previous form state
     setEditingInvestigation(investigation);
     setTitle(investigation.title);
-    setDescription(investigation.description);
+    setDescription(investigation.description || '');
     setAssignedInvestigator(investigation.assignedInvestigator);
     setStatus(investigation.status);
     setOccurrenceDate(investigation.occurrenceDate ? new Date(investigation.occurrenceDate) : undefined);
     setExistingMediaUrls(investigation.mediaUrls || []);
-    setSelectedFiles(null);
-    if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-    }
     setShowForm(true);
   };
 
@@ -233,17 +211,15 @@ export default function InvestigationsPage() {
     setIsSubmitting(true); 
     
     try {
-      await deleteFileFromSupabaseStorageUrl(mediaUrlToDelete); // Use new Supabase specific delete
+      await deleteFileFromSupabaseStorageUrl(mediaUrlToDelete); 
       
       const updatedMediaUrls = existingMediaUrls.filter(url => url !== mediaUrlToDelete);
       setExistingMediaUrls(updatedMediaUrls); 
 
-      // Update the investigation record in Supabase without the deleted media URL
       const updatePayload = { mediaUrls: updatedMediaUrls };
       await updateInvestigation(editingInvestigation.id, updatePayload);
       
       toast({ title: "Mídia Removida", description: "O arquivo e sua referência foram removidos." });
-      // To reflect change immediately on the form (if open)
       setEditingInvestigation(prev => prev ? {...prev, mediaUrls: updatedMediaUrls} : null);
 
     } catch (error: any) {
@@ -251,7 +227,7 @@ export default function InvestigationsPage() {
         toast({
           variant: "destructive",
           title: "Erro ao Remover Mídia",
-          description: error.message || "Não foi possível remover a mídia. Verifique o console.",
+          description: `${error.message}. Verifique o console.`,
         });
     } finally {
         setIsSubmitting(false);
@@ -263,7 +239,6 @@ export default function InvestigationsPage() {
     setIsSubmitting(true);
     
     try {
-      // The deleteInvestigation service function now handles deleting from storage too
       await deleteInvestigation(investigation.id, investigation.mediaUrls);
       toast({ title: "Investigação Removida", description: `"${investigation.title}" e suas mídias associadas foram removidas.`, variant: "default" });
       fetchInvestigations(); 
@@ -272,7 +247,7 @@ export default function InvestigationsPage() {
       toast({
         variant: "destructive",
         title: "Erro ao Remover Investigação",
-        description: error.message || "Não foi possível remover a investigação do Supabase.",
+        description: `${error.message}. Verifique o console do servidor para detalhes do Supabase.`,
       });
     } finally {
       setIsSubmitting(false);
@@ -512,7 +487,7 @@ export default function InvestigationsPage() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={isSubmitting || isUploading}>
-                  {(isSubmitting || isUploading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {(isSubmitting || isUploading) && !editingInvestigation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {isUploading ? 'Enviando Mídia...' : (editingInvestigation ? 'Salvar Alterações' : 'Adicionar Investigação')}
                 </Button>
               </div>

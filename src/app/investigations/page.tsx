@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, useRef } from 'react';
 import { PageHeader } from '@/components/common/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,10 +13,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClock, ListChecks, Loader2, CalendarIcon, Link as LinkIcon, AlertTriangle } from 'lucide-react';
+import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClock, ListChecks, Loader2, CalendarIcon, Link as LinkIcon, AlertTriangle, FileUp, Image as ImageIcon, VideoIcon, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Investigation } from '@/types/investigation';
 import { addInvestigation, getInvestigations, updateInvestigation, deleteInvestigation } from '@/lib/firebase/firestoreService';
+import { uploadFileToStorage, deleteFileFromStorage } from '@/lib/firebase/storageService'; // Import a função de upload
+import Image from 'next/image';
 
 export default function InvestigationsPage() {
   const { toast } = useToast();
@@ -25,14 +27,16 @@ export default function InvestigationsPage() {
   const [editingInvestigation, setEditingInvestigation] = useState<Investigation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assignedInvestigator, setAssignedInvestigator] = useState('');
   const [status, setStatus] = useState<'Aberta' | 'Em Andamento' | 'Concluída' | 'Arquivada'>('Aberta');
-  // roNumber não é mais um estado do formulário, será exibido se estiver editando
   const [occurrenceDate, setOccurrenceDate] = useState<Date | undefined>(undefined);
-  const [mediaUrlsInput, setMediaUrlsInput] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [existingMediaUrls, setExistingMediaUrls] = useState<string[]>([]);
 
 
   const fetchInvestigations = async () => {
@@ -44,7 +48,7 @@ export default function InvestigationsPage() {
       toast({
         variant: "destructive",
         title: "Erro ao Carregar Investigações",
-        description: "Não foi possível buscar os dados do Firestore. Verifique sua configuração do Firebase e regras de segurança.",
+        description: "Não foi possível buscar os dados do Firestore. Verifique sua configuração e regras de segurança.",
       });
       console.error(error);
     } finally {
@@ -62,9 +66,18 @@ export default function InvestigationsPage() {
     setAssignedInvestigator('');
     setStatus('Aberta');
     setOccurrenceDate(undefined);
-    setMediaUrlsInput('');
+    setSelectedFiles(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Limpa o input de arquivo
+    }
     setEditingInvestigation(null);
+    setExistingMediaUrls([]);
     setIsSubmitting(false);
+    setIsUploading(false);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedFiles(event.target.files);
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -79,8 +92,30 @@ export default function InvestigationsPage() {
     }
 
     setIsSubmitting(true);
+    setIsUploading(true);
 
-    const mediaUrlsArray = mediaUrlsInput.split(',').map(url => url.trim()).filter(url => url);
+    let uploadedMediaUrls: string[] = [...existingMediaUrls]; // Começa com as mídias existentes
+
+    if (selectedFiles && selectedFiles.length > 0) {
+      const uploadPromises = Array.from(selectedFiles).map(file => {
+        const filePath = `investigations/${editingInvestigation?.id || Date.now()}/${Date.now()}_${file.name}`;
+        return uploadFileToStorage(file, filePath);
+      });
+
+      try {
+        const urls = await Promise.all(uploadPromises);
+        uploadedMediaUrls = [...uploadedMediaUrls, ...urls]; // Adiciona as novas URLs
+      } catch (error) {
+        console.error("Error uploading files:", error);
+        toast({
+          variant: "destructive",
+          title: "Erro no Upload",
+          description: "Não foi possível carregar uma ou mais mídias. A investigação foi salva sem elas.",
+        });
+        // Prossegue para salvar a investigação sem as novas mídias se o upload falhar
+      }
+    }
+    setIsUploading(false);
 
     const investigationData: any = {
       title,
@@ -88,12 +123,11 @@ export default function InvestigationsPage() {
       assignedInvestigator,
       status,
       occurrenceDate: occurrenceDate ? occurrenceDate.toISOString() : undefined,
-      mediaUrls: mediaUrlsArray,
+      mediaUrls: uploadedMediaUrls,
     };
 
     try {
       if (editingInvestigation) {
-        // RO Number não é atualizado
         await updateInvestigation(editingInvestigation.id, investigationData);
         toast({ title: "Investigação Atualizada", description: `"${investigationData.title}" foi atualizada.` });
       } else {
@@ -122,22 +156,117 @@ export default function InvestigationsPage() {
     setAssignedInvestigator(investigation.assignedInvestigator);
     setStatus(investigation.status);
     setOccurrenceDate(investigation.occurrenceDate ? new Date(investigation.occurrenceDate) : undefined);
-    setMediaUrlsInput((investigation.mediaUrls || []).join(', '));
+    setExistingMediaUrls(investigation.mediaUrls || []);
+    setSelectedFiles(null); // Limpa seleção de arquivos anterior
+    if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+    }
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string, investigationTitle: string) => {
-    setIsSubmitting(true);
+  // Função para extrair o caminho do arquivo do URL do Firebase Storage
+  const getPathFromUrl = (url: string) => {
     try {
-      await deleteInvestigation(id);
-      toast({ title: "Investigação Removida", description: `"${investigationTitle}" foi removida.`, variant: "default" });
-      fetchInvestigations(); // Refetch para atualizar a lista e contagem para o próximo RO
+      const urlObject = new URL(url);
+      // O caminho geralmente está após /o/ e antes do ?alt=media
+      const pathWithQuery = urlObject.pathname.split('/o/')[1];
+      if (pathWithQuery) {
+        return decodeURIComponent(pathWithQuery.split('?')[0]);
+      }
+    } catch (e) {
+      console.error("Error parsing URL for path:", url, e);
+    }
+    return null; // Retorna null se não conseguir parsear
+  };
+
+
+  const handleDeleteMedia = async (mediaUrlToDelete: string, investigationId: string) => {
+    if (!editingInvestigation || editingInvestigation.id !== investigationId) return;
+
+    setIsSubmitting(true); // Reutiliza o estado de submissão para indicar processamento
+    const filePath = getPathFromUrl(mediaUrlToDelete);
+
+    if (filePath) {
+      try {
+        await deleteFileFromStorage(filePath);
+      } catch (error) {
+        console.error("Error deleting file from storage:", error);
+        toast({
+          variant: "destructive",
+          title: "Erro ao Remover Mídia do Storage",
+          description: "Não foi possível remover o arquivo do armazenamento. A referência será removida da investigação.",
+        });
+      }
+    } else {
+       toast({
+          variant: "warning",
+          title: "Não foi possível identificar o arquivo no Storage",
+          description: "A referência será removida da investigação, mas o arquivo pode permanecer no armazenamento.",
+        });
+    }
+
+    const updatedMediaUrls = existingMediaUrls.filter(url => url !== mediaUrlToDelete);
+    setExistingMediaUrls(updatedMediaUrls); // Atualiza o estado local para UI
+
+    // Atualiza a investigação no Firestore sem a mídia removida
+    try {
+        const investigationDataToUpdate = {
+            ...editingInvestigation,
+            mediaUrls: updatedMediaUrls,
+        };
+        // Remove campos que não devem ser enviados diretamente para update
+        const { id, creationDate, roNumber, ...updatePayload } = investigationDataToUpdate;
+
+        await updateInvestigation(investigationId, updatePayload as Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>>);
+        toast({ title: "Mídia Removida", description: "A referência da mídia foi removida da investigação." });
+        fetchInvestigations(); // Refetch para consistência, embora a UI já esteja atualizada
+    } catch (error) {
+        console.error("Error updating investigation after media deletion:", error);
+        toast({
+          variant: "destructive",
+          title: "Erro ao Atualizar Investigação",
+          description: "Não foi possível atualizar a investigação após remover a mídia.",
+        });
+        // Reverter a mudança na UI se o Firestore falhar? Ou deixar o usuário tentar salvar manualmente?
+        // Por ora, a UI fica com a mídia removida, e o próximo "Salvar Alterações" tentaria persistir.
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
+
+  const handleDeleteInvestigation = async (investigation: Investigation) => {
+    setIsSubmitting(true);
+    // Deletar mídias associadas do Firebase Storage
+    if (investigation.mediaUrls && investigation.mediaUrls.length > 0) {
+      const deletePromises = investigation.mediaUrls.map(url => {
+        const filePath = getPathFromUrl(url);
+        if (filePath) {
+          return deleteFileFromStorage(filePath).catch(err => {
+            console.error(`Failed to delete ${filePath} from storage:`, err);
+            // Continua mesmo se uma exclusão de arquivo falhar, para não bloquear a exclusão da investigação
+          });
+        }
+        return Promise.resolve();
+      });
+      try {
+        await Promise.all(deletePromises);
+        toast({ title: "Mídias Removidas do Storage", description: "Arquivos associados foram removidos.", variant: "default" });
+      } catch (error) {
+         toast({ title: "Erro ao Remover Mídias do Storage", description: "Alguns arquivos podem não ter sido removidos.", variant: "warning" });
+      }
+    }
+
+    try {
+      await deleteInvestigation(investigation.id);
+      toast({ title: "Investigação Removida", description: `"${investigation.title}" foi removida.`, variant: "default" });
+      fetchInvestigations(); 
     } catch (error) {
       console.error(error);
       toast({
         variant: "destructive",
-        title: "Erro ao Remover",
-        description: "Não foi possível remover a investigação.",
+        title: "Erro ao Remover Investigação",
+        description: "Não foi possível remover a investigação do Firestore.",
       });
     } finally {
       setIsSubmitting(false);
@@ -169,6 +298,41 @@ export default function InvestigationsPage() {
     }
   };
 
+  const renderMedia = (url: string) => {
+    const isImage = /\.(jpeg|jpg|gif|png|webp)$/i.test(url.split('?')[0]); // Ignora query params como o token do Firebase
+    const isVideo = /\.(mp4|webm|ogg)$/i.test(url.split('?')[0]);
+
+    if (isImage) {
+      return (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="block relative w-full h-32 overflow-hidden rounded group">
+          <Image src={url} alt="Mídia da investigação" layout="fill" objectFit="cover" className="transition-transform duration-300 group-hover:scale-105" />
+           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center transition-opacity duration-300">
+            <ImageIcon className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </div>
+        </a>
+      );
+    }
+    if (isVideo) {
+      return (
+         <div className="relative group">
+          <video controls muted loop className="w-full h-32 object-cover rounded" preload="metadata">
+            <source src={url} type={`video/${url.split('.').pop()?.split('?')[0]}`} />
+            Seu navegador não suporta a tag de vídeo.
+          </video>
+           <a href={url} target="_blank" rel="noopener noreferrer" className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 flex items-center justify-center transition-opacity duration-300">
+            <VideoIcon className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </a>
+        </div>
+      );
+    }
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all flex items-center">
+        <LinkIcon className="h-4 w-4 mr-1.5 shrink-0" /> {url.substring(0, 30)}...
+      </a>
+    );
+  };
+
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -181,7 +345,7 @@ export default function InvestigationsPage() {
         <div className="flex items-center space-x-2">
           <AlertTriangle className="h-5 w-5 text-yellow-500" />
           <p className="text-sm text-muted-foreground">
-            <strong>Nota:</strong> O número de R.O. é gerado automaticamente. A funcionalidade de upload de mídias ainda não está implementada; por favor, insira URLs diretos para imagens/vídeos no campo "URLs de Mídia".
+            <strong>Nota:</strong> O número de R.O. é gerado automaticamente. Configure as regras de segurança do Firebase Storage para permitir uploads.
           </p>
         </div>
       </Card>
@@ -270,11 +434,61 @@ export default function InvestigationsPage() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div>
-                <Label htmlFor="mediaUrls">URLs de Mídia (separados por vírgula)</Label>
-                <Textarea id="mediaUrls" value={mediaUrlsInput} onChange={(e) => setMediaUrlsInput(e.target.value)} placeholder="Ex: https://example.com/imagem.jpg, https://example.com/video.mp4" rows={3} disabled={isSubmitting} />
-                <p className="text-xs text-muted-foreground mt-1">Cole URLs de imagens ou vídeos. Upload direto de arquivos será implementado futuramente.</p>
+                <Label htmlFor="mediaFiles">Adicionar Mídias (Imagens/Vídeos)</Label>
+                <Input 
+                  id="mediaFiles" 
+                  type="file" 
+                  multiple 
+                  onChange={handleFileChange} 
+                  ref={fileInputRef}
+                  disabled={isSubmitting || isUploading} 
+                  className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                />
+                {isUploading && (
+                  <div className="flex items-center text-sm text-muted-foreground mt-2">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Enviando arquivos...
+                  </div>
+                )}
+                {selectedFiles && selectedFiles.length > 0 && !isUploading && (
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    <p>{selectedFiles.length} arquivo(s) selecionado(s):</p>
+                    <ul className="list-disc list-inside max-h-20 overflow-y-auto">
+                      {Array.from(selectedFiles).map((file, index) => (
+                        <li key={index} className="truncate">{file.name} ({(file.size / 1024).toFixed(1)} KB)</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
+
+              {editingInvestigation && existingMediaUrls.length > 0 && (
+                <div>
+                  <Label>Mídias Existentes</Label>
+                  <div className="space-y-2 mt-1 border p-2 rounded-md">
+                    {existingMediaUrls.map((url) => (
+                      <div key={url} className="flex items-center justify-between text-sm p-1 bg-muted/50 rounded">
+                        <span className="truncate max-w-[80%]">
+                           {url.substring(url.lastIndexOf('%2F') + 3, url.indexOf('?')).split('_').slice(1).join('_') || 'Nome de arquivo desconhecido'}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 p-1 h-auto"
+                          onClick={() => handleDeleteMedia(url, editingInvestigation.id)}
+                          disabled={isSubmitting}
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
 
               <div className="flex justify-end space-x-3">
                 <Button 
@@ -284,12 +498,12 @@ export default function InvestigationsPage() {
                     resetForm();      
                     setShowForm(false); 
                   }} 
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isUploading}
                 >
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                <Button type="submit" disabled={isSubmitting || isUploading}>
+                  {(isSubmitting || isUploading) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {editingInvestigation ? 'Salvar Alterações' : 'Adicionar Investigação'}
                 </Button>
               </div>
@@ -349,14 +563,14 @@ export default function InvestigationsPage() {
                 )}
                 {inv.mediaUrls && inv.mediaUrls.length > 0 && (
                   <div className="pt-2 border-t mt-3">
-                    <h4 className="text-sm font-semibold text-primary mb-1.5 flex items-center"><LinkIcon className="h-4 w-4 mr-1.5"/>Mídias Anexadas (URLs):</h4>
-                    <ul className="list-disc list-inside space-y-1">
+                    <h4 className="text-sm font-semibold text-primary mb-1.5 flex items-center"><FileUp className="h-4 w-4 mr-1.5"/>Mídias Anexadas:</h4>
+                    <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto">
                       {inv.mediaUrls.map((url, index) => (
-                        <li key={index} className="text-xs truncate">
-                          <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{url}</a>
-                        </li>
+                        <div key={index} className="text-xs">
+                          {renderMedia(url)}
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -364,7 +578,7 @@ export default function InvestigationsPage() {
                 <Button variant="outline" size="sm" onClick={() => handleEdit(inv)} disabled={isSubmitting}>
                   <Edit3 className="mr-1.5 h-4 w-4" /> Editar
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(inv.id, inv.title)} disabled={isSubmitting}>
+                <Button variant="destructive" size="sm" onClick={() => handleDeleteInvestigation(inv)} disabled={isSubmitting}>
                   <Trash2 className="mr-1.5 h-4 w-4" /> Excluir
                 </Button>
               </CardFooter>
@@ -375,4 +589,3 @@ export default function InvestigationsPage() {
     </div>
   );
 }
-

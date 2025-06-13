@@ -239,12 +239,12 @@ export async function updateSuspiciousVehicle(id: string, updates: Partial<Omit<
   }
 }
 
-export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, bucketName: string, supabaseClientParam?: ReturnType<typeof createSupabaseServerClient>): Promise<ServiceResponse> {
-  const functionName = "deleteFileFromSupabaseStorageUrl";
+export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, supabaseClientParam?: ReturnType<typeof createSupabaseServerClient>): Promise<ServiceResponse> {
+  const functionName = "deleteFileFromSupabaseStorageUrl (SuspiciousVehicles)";
   const cookieStore = cookies(); 
   const supabase = supabaseClientParam || createSupabaseServerClient(cookieStore);
 
-  console.log(`[SupabaseStorageService][${functionName}] Called for URL: ${fileUrl}. Using bucket: ${bucketName}`);
+  console.log(`[SupabaseStorageService][${functionName}] Called for URL: ${fileUrl}. Using bucket: ${SUSPICIOUS_VEHICLE_PHOTOS_BUCKET}`);
   try {
     if (!fileUrl || typeof fileUrl !== 'string') {
       const warningMsg = `Invalid fileUrl provided for deletion: ${fileUrl}`;
@@ -256,7 +256,8 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, bucketNa
     try {
         const urlObject = new URL(fileUrl);
         const pathSegments = urlObject.pathname.split('/'); 
-        const bucketNameIndex = pathSegments.findIndex(segment => segment === bucketName);
+        // Use the constant for the bucket name
+        const bucketNameIndex = pathSegments.findIndex(segment => segment === SUSPICIOUS_VEHICLE_PHOTOS_BUCKET);
 
         if (bucketNameIndex !== -1 && bucketNameIndex < pathSegments.length -1) {
             filePathKey = pathSegments.slice(bucketNameIndex + 1).join('/');
@@ -266,7 +267,7 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, bucketNa
             }
             filePathKey = decodeURIComponent(filePathKey); 
         } else {
-            const objectPublicPattern = `/object/public/${bucketName}/`;
+            const objectPublicPattern = `/object/public/${SUSPICIOUS_VEHICLE_PHOTOS_BUCKET}/`;
             if (urlObject.pathname.includes(objectPublicPattern)) {
                 filePathKey = urlObject.pathname.substring(urlObject.pathname.indexOf(objectPublicPattern) + objectPublicPattern.length);
                 const queryIndex = filePathKey.indexOf('?');
@@ -275,7 +276,7 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, bucketNa
                 }
                 filePathKey = decodeURIComponent(filePathKey);
             } else {
-                const malformedUrlError = `Could not reliably extract file path key from URL: ${fileUrl} using bucket name '${bucketName}'. Pathname: ${urlObject.pathname}`;
+                const malformedUrlError = `Could not reliably extract file path key from URL: ${fileUrl} using bucket name '${SUSPICIOUS_VEHICLE_PHOTOS_BUCKET}'. Pathname: ${urlObject.pathname}`;
                 console.warn(`[SupabaseStorageService][${functionName}] ${malformedUrlError}`);
                 return { success: false, error: malformedUrlError };
             }
@@ -292,9 +293,9 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, bucketNa
       return { success: false, error: errMsg };
     }
 
-    console.log(`[SupabaseStorageService][${functionName}] Attempting to delete file from path: '${filePathKey}' in bucket '${bucketName}'`);
+    console.log(`[SupabaseStorageService][${functionName}] Attempting to delete file from path: '${filePathKey}' in bucket '${SUSPICIOUS_VEHICLE_PHOTOS_BUCKET}'`);
     const { data, error: deleteStorageError } = await supabase.storage
-      .from(bucketName)
+      .from(SUSPICIOUS_VEHICLE_PHOTOS_BUCKET) // Use the constant
       .remove([filePathKey]); 
 
     if (deleteStorageError) {
@@ -303,7 +304,7 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, bucketNa
       const statusCode = (deleteStorageError as any).statusCode || (deleteStorageError as any).status;
 
       if (errString.includes("not found") || errString.includes("no object exists") || errMessage?.includes("not found") || statusCode === 404 || statusCode === 400 && errMessage?.includes("object not found")) {
-           console.warn(`[SupabaseStorageService][${functionName}] File not found in bucket ${bucketName} at path '${filePathKey}', considered successful deletion for idempotency. (Error: ${(deleteStorageError as any).message})`);
+           console.warn(`[SupabaseStorageService][${functionName}] File not found in bucket ${SUSPICIOUS_VEHICLE_PHOTOS_BUCKET} at path '${filePathKey}', considered successful deletion for idempotency. (Error: ${(deleteStorageError as any).message})`);
            return { success: true }; 
       }
 
@@ -311,7 +312,7 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, bucketNa
       const { message: formattedMessage } = formatSupabaseError(deleteStorageError, `${functionName} - Supabase .remove`);
       return { success: false, error: formattedMessage };
     }
-    console.log(`[SupabaseStorageService][${functionName}] File deleted successfully from bucket ${bucketName}: ${filePathKey}`, data);
+    console.log(`[SupabaseStorageService][${functionName}] File deleted successfully from bucket ${SUSPICIOUS_VEHICLE_PHOTOS_BUCKET}: ${filePathKey}`, data);
     return { success: true };
   } catch (error: any) { 
     console.error(`[SupabaseStorageService][${functionName}] UNHANDLED EXCEPTION in main try-catch.`);
@@ -329,7 +330,8 @@ export async function deleteSuspiciousVehicle(id: string, photoUrlToDelete?: str
     const supabase = createSupabaseServerClient(cookieStore);
     if (photoUrlToDelete) {
       console.log(`[SupabaseService][${functionName}] Attempting to delete photo file from storage for vehicle ${id}. URL: ${photoUrlToDelete}`);
-      const deletePhotoResponse = await deleteFileFromSupabaseStorageUrl(photoUrlToDelete, SUSPICIOUS_VEHICLE_PHOTOS_BUCKET, supabase);
+      // Now calls the corrected deleteFileFromSupabaseStorageUrl which uses the correct bucket internally
+      const deletePhotoResponse = await deleteFileFromSupabaseStorageUrl(photoUrlToDelete, supabase);
       if (!deletePhotoResponse.success) {
         console.warn(`[SupabaseService][${functionName}] Failed to delete photo file ${photoUrlToDelete} during vehicle deletion: ${deletePhotoResponse.error}`);
         // Decide if this should be a critical failure or just a warning. For now, proceeding with DB deletion.
@@ -357,3 +359,4 @@ export async function deleteSuspiciousVehicle(id: string, photoUrlToDelete?: str
     return { success: false, error: formattedMessage };
   }
 }
+

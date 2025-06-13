@@ -1,19 +1,31 @@
-
 // src/lib/supabase/investigationService.ts
 'use server';
 
-import { supabase } from './client';
+import { cookies } from 'next/headers';
+import { createSupabaseServerClient } from '@/lib/supabase/server'; // Use the new server client
 import type { Investigation, InvestigationInput } from '@/types/investigation';
 
 const INVESTIGATIONS_TABLE = 'investigations';
 const INVESTIGATION_MEDIA_BUCKET = 'investigationmedia';
 
+interface UploadResponse {
+  success: boolean;
+  urls?: string[];
+  error?: string;
+}
+
+interface GenericResponse {
+    success: boolean;
+    error?: string;
+    data?: any;
+}
+
+
 // Centralized error formatting and logging
 const formatSupabaseError = (error: any, functionName: string): { message: string, originalError: any } => {
   let message = `Error in ${functionName}.`;
-  let logDetails = error;
-
-  console.error(`[SupabaseService][${functionName}] Original error type: ${typeof error}. Original error object:`, logDetails);
+  
+  console.error(`[SupabaseService][${functionName}] Original error type: ${typeof error}. Original error object:`, error);
 
   if (error instanceof Error) {
     message = error.message || message;
@@ -31,7 +43,7 @@ const formatSupabaseError = (error: any, functionName: string): { message: strin
     const supabaseError = error as { message?: string; details?: string; hint?: string; error_description?: string, error?: string, code?: string, status?: number };
     if (supabaseError.message) message = supabaseError.message;
     else if (supabaseError.error_description) message = supabaseError.error_description;
-    else if (supabaseError.error) message = supabaseError.error;
+    else if (supabaseError.error) message = supabaseError.error; // For StorageError
     else if (supabaseError.code || supabaseError.status) message = `Supabase error (Code: ${supabaseError.code}, Status: ${supabaseError.status}). Check server logs.`;
     else message = `An unexpected error of type ${typeof error} occurred in ${functionName}. Check server logs for full details.`;
   } else {
@@ -40,14 +52,16 @@ const formatSupabaseError = (error: any, functionName: string): { message: strin
   
   const finalMessage = String(message).trim() || `An unexpected error occurred in ${functionName}. Check server logs.`;
   console.error(`[SupabaseService][${functionName}] Formatted client-facing error message: "${finalMessage}"`);
-  return { message: finalMessage, originalError: logDetails };
+  return { message: finalMessage, originalError: error };
 };
 
 
 export async function addInvestigation(
   investigationData: Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber'>
-): Promise<Investigation> {
+): Promise<Investigation> { // Keep throwing for this one as client expects Investigation or error
   const functionName = "addInvestigation";
+  const cookieStore = cookies();
+  const supabase = createSupabaseServerClient(cookieStore);
   console.log(`[SupabaseService][${functionName}] Called with data (mediaUrls length: ${investigationData.mediaUrls?.length ?? 0})`);
 
   try {
@@ -102,7 +116,7 @@ export async function addInvestigation(
     };
 
   } catch (error: any) {
-    if (error instanceof Error && error.message.startsWith('Error in')) { // Already formatted
+    if (error instanceof Error && error.message.startsWith('Error in')) { 
         throw error;
     }
     const { message: formattedMessage } = formatSupabaseError(error, functionName);
@@ -111,8 +125,10 @@ export async function addInvestigation(
 }
 
 
-export async function getInvestigations(): Promise<Investigation[]> {
+export async function getInvestigations(): Promise<Investigation[]> { // Keep throwing for this one
   const functionName = "getInvestigations";
+  const cookieStore = cookies();
+  const supabase = createSupabaseServerClient(cookieStore);
   try {
     console.log(`[SupabaseService][${functionName}] Attempting to fetch investigations.`);
     const { data, error } = await supabase
@@ -147,8 +163,10 @@ export async function getInvestigations(): Promise<Investigation[]> {
   }
 }
 
-export async function updateInvestigation(id: string, updates: Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>>): Promise<Investigation> {
+export async function updateInvestigation(id: string, updates: Partial<Omit<Investigation, 'id' | 'creationDate' | 'roNumber'>>): Promise<Investigation> { // Keep throwing
   const functionName = "updateInvestigation";
+  const cookieStore = cookies();
+  const supabase = createSupabaseServerClient(cookieStore);
   try {
     const supabaseUpdates: Record<string, any> = {};
     if (updates.title !== undefined) supabaseUpdates.title = updates.title;
@@ -193,13 +211,17 @@ export async function updateInvestigation(id: string, updates: Partial<Omit<Inve
   }
 }
 
-export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string[]): Promise<{success: boolean; error?: string}> {
+export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string[]): Promise<GenericResponse> {
   const functionName = "deleteInvestigation";
+  const cookieStore = cookies();
+  const supabase = createSupabaseServerClient(cookieStore); // Needed for deleteFileFromSupabaseStorageUrl if it used this client
+  
   console.log(`[SupabaseService][${functionName}] Called for id: ${id}`, mediaUrlsToDelete ? `with ${mediaUrlsToDelete.length} media URLs to delete.` : "with no media URLs to delete.");
   try {
     if (mediaUrlsToDelete && mediaUrlsToDelete.length > 0) {
       console.log(`[SupabaseService][${functionName}] Attempting to delete ${mediaUrlsToDelete.length} media files from storage for investigation ${id}.`);
-      const deletePromises = mediaUrlsToDelete.map(url => deleteFileFromSupabaseStorageUrl(url));
+      // Pass the supabase client instance to deleteFileFromSupabaseStorageUrl
+      const deletePromises = mediaUrlsToDelete.map(url => deleteFileFromSupabaseStorageUrl(url, supabase));
       
       const results = await Promise.allSettled(deletePromises);
       results.forEach((result, index) => {
@@ -235,32 +257,26 @@ export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string
 
 // --- File Storage Specific Functions ---
 
-interface UploadFileResponse {
-  success: boolean;
-  urls?: string[];
-  error?: string;
-}
-
-export async function uploadFileToSupabaseStorage(formData: FormData): Promise<UploadFileResponse> {
+export async function uploadFileToSupabaseStorage(formData: FormData): Promise<UploadResponse> {
   const functionName = "uploadFileToSupabaseStorage (FormData)";
-  console.log(`[SupabaseStorageService][${functionName}] Entered function.`);
+  const cookieStore = cookies();
+  const supabase = createSupabaseServerClient(cookieStore);
 
-  const loggableFormData: Record<string, any> = {};
+  console.log(`[SupabaseStorageService][${functionName}] Entered function.`);
+  
+  const loggableFormData: Record<string, any> = { files: [] };
   try {
-    // @ts-ignore
     for (const [key, value] of formData.entries()) {
       if (value instanceof File) {
-        loggableFormData[key] = { name: value.name, size: value.size, type: value.type };
+        loggableFormData.files.push({ name: value.name, size: value.size, type: value.type });
       } else {
         loggableFormData[key] = value;
       }
     }
-    console.log(`[SupabaseStorageService][${functionName}] Received FormData with entries (files logged with basic info):`, JSON.stringify(loggableFormData, null, 2));
+    console.log(`[SupabaseStorageService][${functionName}] Received FormData, parsed investigationId and file info:`, JSON.stringify(loggableFormData, null, 2));
   } catch (e) {
       console.error(`[SupabaseStorageService][${functionName}] Error trying to log FormData entries:`, e);
-      // Do not return here, try to proceed if possible
   }
-
 
   try {
     const investigationId = formData.get('investigationId') as string;
@@ -273,19 +289,17 @@ export async function uploadFileToSupabaseStorage(formData: FormData): Promise<U
     }
     if (!files || files.length === 0) {
       console.warn(`[SupabaseStorageService][${functionName}] No files found in FormData to upload for investigation ${investigationId}.`);
-      return { success: true, urls: [] }; // No error, but no files uploaded
+      return { success: true, urls: [] };
     }
     
-    // Check if files are actual File objects
     for (const file of files) {
         if (!(file instanceof File)) {
-            const invalidFileError = `Invalid item encountered in 'mediaFiles'. Expected File object, got ${typeof file}. Item details: ${JSON.stringify(file)}`;
+            const invalidFileError = `Invalid item encountered in 'mediaFiles'. Expected File object, got ${typeof file}.`;
             console.error(`[SupabaseStorageService][${functionName}] ${invalidFileError}`);
-            return { success: false, error: `One or more media items are not valid files. Please check the selection. (${invalidFileError.substring(0,100)})` };
+            return { success: false, error: `One or more media items are not valid files.` };
         }
     }
     console.log(`[SupabaseStorageService][${functionName}] Processing ${files.length} valid file(s) for investigation ID: ${investigationId}`);
-
 
     const uploadedUrls: string[] = [];
 
@@ -304,7 +318,7 @@ export async function uploadFileToSupabaseStorage(formData: FormData): Promise<U
         });
 
       if (uploadError) {
-        console.error(`[SupabaseStorageService][${functionName}] Supabase upload error for ${filePath}.`);
+        console.error(`[SupabaseStorageService][${functionName}] Supabase storage.upload error for ${filePath}.`);
         const { message: formattedMessage } = formatSupabaseError(uploadError, `${functionName} - Supabase .upload`);
         return { success: false, error: `Upload error: ${formattedMessage}` };
       }
@@ -315,23 +329,20 @@ export async function uploadFileToSupabaseStorage(formData: FormData): Promise<U
          return { success: false, error: noPathError };
       }
 
-      const { data: publicUrlData, error: publicUrlError } = supabase.storage
+      const { data: publicUrlData } = supabase.storage // Removed error check here as getPublicUrl doesn't return an error object in the same way for V2. It throws on failure or path is bad.
          .from(INVESTIGATION_MEDIA_BUCKET)
          .getPublicUrl(uploadData.path);
 
-      if (publicUrlError || !publicUrlData || !publicUrlData.publicUrl) {
+      if (!publicUrlData || !publicUrlData.publicUrl) {
         const getUrlErrorMsg = `Failed to get public URL for ${file.name} after upload. Supabase path: ${uploadData.path}`;
-        console.error(`[SupabaseStorageService][${functionName}] ${getUrlErrorMsg}. Public URL Error details:`, publicUrlError);
-        console.error(`[SupabaseStorageService][${functionName}] Public URL Data received:`, publicUrlData);
-        // Attempt to remove orphaned file if URL retrieval fails
+        console.error(`[SupabaseStorageService][${functionName}] ${getUrlErrorMsg}. Public URL Data received:`, publicUrlData);
         try {
           await supabase.storage.from(INVESTIGATION_MEDIA_BUCKET).remove([uploadData.path]);
           console.log(`[SupabaseStorageService][${functionName}] Orphaned file ${uploadData.path} removed successfully.`);
         } catch (removeError: any) {
            console.warn(`[SupabaseStorageService][${functionName}] Failed to remove orphaned file ${uploadData.path} from bucket ${INVESTIGATION_MEDIA_BUCKET}:`, formatSupabaseError(removeError, `${functionName} - removeOrphan`).message);
         }
-        const { message: formattedUrlErrorMessage } = formatSupabaseError(publicUrlError || new Error("Could not retrieve public URL."), `${functionName} - getPublicUrl`);
-        return { success: false, error: `${getUrlErrorMsg}. Reason: ${formattedUrlErrorMessage}` };
+        return { success: false, error: `${getUrlErrorMsg}. Reason: Could not retrieve public URL.` };
       }
       const publicURL = publicUrlData.publicUrl;
       console.log(`[SupabaseStorageService][${functionName}] Upload of ${file.name} successful. Public URL: ${publicURL}`);
@@ -340,21 +351,19 @@ export async function uploadFileToSupabaseStorage(formData: FormData): Promise<U
     console.log(`[SupabaseStorageService][${functionName}] All files uploaded successfully. Returning URLs:`, uploadedUrls);
     return { success: true, urls: uploadedUrls };
 
-  } catch (error: any) { // This is the outermost catch for uploadFileToSupabaseStorage
-    const { message: formattedMessage, originalError } = formatSupabaseError(error, functionName);
-    console.error(`[SupabaseStorageService][${functionName}] UNHANDLED EXCEPTION in main try-catch. Error: ${formattedMessage}. Original error was:`, originalError);
+  } catch (error: any) { 
+    const { message: formattedMessage } = formatSupabaseError(error, functionName);
+    console.error(`[SupabaseStorageService][${functionName}] UNHANDLED EXCEPTION in main try-catch. Error: ${formattedMessage}.`);
     return { success: false, error: `Upload error (unhandled exception): ${formattedMessage}` };
   }
 }
 
 
-interface DeleteFileResponse {
-  success: boolean;
-  error?: string;
-}
-
-export async function deleteFileFromSupabaseStorageUrl(fileUrl: string): Promise<DeleteFileResponse> {
+// Modified to accept supabase client instance
+export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, supabaseClient?: any): Promise<GenericResponse> {
   const functionName = "deleteFileFromSupabaseStorageUrl";
+  const supabase = supabaseClient || createSupabaseServerClient(cookies()); // Use passed client or create new
+
   console.log(`[SupabaseStorageService][${functionName}] Called for URL: ${fileUrl}`);
   try {
     if (!fileUrl || typeof fileUrl !== 'string') {
@@ -367,24 +376,19 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string): Promise
     try {
         const urlObject = new URL(fileUrl);
         const pathSegments = urlObject.pathname.split('/');
-        // Expected structure: /storage/v1/object/public/BUCKET_NAME/INVESTIGATION_ID/FILE_NAME.EXT
-        // Find BUCKET_NAME and take everything after it.
         const bucketNameIndex = pathSegments.findIndex(segment => segment === INVESTIGATION_MEDIA_BUCKET);
         if (bucketNameIndex !== -1 && bucketNameIndex < pathSegments.length -1) {
             filePathKey = pathSegments.slice(bucketNameIndex + 1).join('/');
             filePathKey = decodeURIComponent(filePathKey);
-             // Remove query parameters if any (often from image transformations)
             const queryIndex = filePathKey.indexOf('?');
             if (queryIndex !== -1) {
                 filePathKey = filePathKey.substring(0, queryIndex);
             }
         } else {
-            console.warn(`[SupabaseStorageService][${functionName}] Could not reliably extract file path key from URL: ${fileUrl} using bucket name '${INVESTIGATION_MEDIA_BUCKET}'. Path segments: ${pathSegments.join(', ')}`);
+            console.warn(`[SupabaseStorageService][${functionName}] Could not reliably extract file path key from URL: ${fileUrl} using bucket name '${INVESTIGATION_MEDIA_BUCKET}'.`);
             throw new Error(`Could not determine file path from URL for deletion: ${fileUrl}`);
         }
     } catch (e: any) {
-      const errMsg = `Invalid URL format or issue extracting path for deletion: ${fileUrl}. Details: ${e.message || String(e)}`;
-      console.warn(`[SupabaseStorageService][${functionName}] ${errMsg}`);
       const { message: formattedMessage } = formatSupabaseError(e, `${functionName} - URL parsing`);
       return { success: false, error: formattedMessage };
     }
@@ -413,10 +417,8 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string): Promise
     }
     console.log(`[SupabaseStorageService][${functionName}] File deleted successfully from bucket ${INVESTIGATION_MEDIA_BUCKET}: ${filePathKey}`, data);
     return { success: true };
-  } catch (error: any) { // This is the outermost catch for deleteFileFromSupabaseStorageUrl
+  } catch (error: any) { 
     const { message: formattedMessage } = formatSupabaseError(error, functionName);
     return { success: false, error: `Delete file error (unhandled exception): ${formattedMessage}` };
   }
 }
-
-    

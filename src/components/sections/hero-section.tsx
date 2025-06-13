@@ -14,7 +14,7 @@ export function HeroSection() {
         className="absolute z-0 w-auto min-w-full min-h-full max-w-none object-cover"
         aria-label="Vídeo de apresentação da DIVECAR Osasco"
       >
-        <source src="/videos/divecar.mp4" type="video/mp4" />
+        <source src="/videos/divecar3.mp4" type="video/mp4" />
         Seu navegador não suporta o elemento de vídeo.
       </video>
       <div className="absolute inset-0 bg-black/50 z-10"></div> {/* Overlay para contraste do texto */}

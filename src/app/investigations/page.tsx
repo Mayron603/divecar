@@ -13,7 +13,8 @@ import { FolderSearch, PlusCircle, Trash2, Edit3, User, ShieldCheck, CalendarClo
 import { useToast } from '@/hooks/use-toast';
 import type { Investigation } from '@/types/investigation';
 import { addInvestigation, getInvestigations, updateInvestigation, deleteInvestigation } from '@/lib/firebase/firestoreService';
-import { Timestamp } from 'firebase/firestore';
+// Timestamp não é mais necessário aqui para creationDate, pois virá como string
+// import { Timestamp } from 'firebase/firestore'; 
 
 export default function InvestigationsPage() {
   const { toast } = useToast();
@@ -58,7 +59,6 @@ export default function InvestigationsPage() {
     setRoNumber('');
     setEditingInvestigation(null);
     setIsSubmitting(false);
-    // setShowForm(false); // Removido daqui
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -87,12 +87,13 @@ export default function InvestigationsPage() {
         await updateInvestigation(editingInvestigation.id, investigationData);
         toast({ title: "Investigação Atualizada", description: `"${investigationData.title}" foi atualizada.` });
       } else {
-        await addInvestigation(investigationData);
+        // Para addInvestigation, não precisamos passar creationDate, pois o firestoreService usa serverTimestamp()
+        await addInvestigation(investigationData as any); // O 'as any' é para simplificar, já que InvestigationInput espera creationDate
         toast({ title: "Investigação Adicionada", description: `"${investigationData.title}" foi criada.` });
       }
-      setShowForm(false); // Esconde o formulário após sucesso
-      resetForm();       // Limpa os campos e estado de edição
-      fetchInvestigations(); // Re-fetch para atualizar a lista
+      setShowForm(false);
+      resetForm();
+      fetchInvestigations();
     } catch (error) {
       console.error(error);
       toast({
@@ -100,7 +101,7 @@ export default function InvestigationsPage() {
         title: "Erro ao Salvar",
         description: "Não foi possível salvar a investigação. Verifique o console para mais detalhes.",
       });
-      setIsSubmitting(false); // Garante que isSubmitting seja false em caso de erro
+      setIsSubmitting(false);
     }
   };
 
@@ -111,15 +112,15 @@ export default function InvestigationsPage() {
     setAssignedInvestigator(investigation.assignedInvestigator);
     setStatus(investigation.status);
     setRoNumber(investigation.roNumber || '');
-    setShowForm(true); // Mostra o formulário para edição
+    setShowForm(true);
   };
 
   const handleDelete = async (id: string, investigationTitle: string) => {
-    setIsSubmitting(true); // Desabilita botões durante a exclusão
+    setIsSubmitting(true);
     try {
       await deleteInvestigation(id);
-      toast({ title: "Investigação Removida", description: `"${investigationTitle}" foi removida.`, variant: "default" }); // Mudado para default para diferenciar de erros
-      fetchInvestigations(); // Re-fetch para atualizar a lista
+      toast({ title: "Investigação Removida", description: `"${investigationTitle}" foi removida.`, variant: "default" });
+      fetchInvestigations();
     } catch (error) {
       console.error(error);
       toast({
@@ -128,7 +129,7 @@ export default function InvestigationsPage() {
         description: "Não foi possível remover a investigação.",
       });
     } finally {
-      setIsSubmitting(false); // Reabilita botões
+      setIsSubmitting(false);
     }
   };
 
@@ -146,17 +147,15 @@ export default function InvestigationsPage() {
     'Arquivada': <ListChecks className="h-4 w-4 mr-1.5" />,
   };
 
-  const formatDate = (timestamp: Timestamp | undefined) => {
-    if (!timestamp) return 'Data desconhecida';
-    // Verifica se o timestamp já é um objeto Date (após a primeira serialização do Firestore)
-    if (timestamp instanceof Date) {
-      return timestamp.toLocaleDateString('pt-BR');
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Data desconhecida';
+    try {
+      // Converte a string ISO de volta para um objeto Date para formatação
+      return new Date(dateString).toLocaleDateString('pt-BR');
+    } catch (error) {
+      console.error("Error formatting date from string:", dateString, error);
+      return 'Data inválida';
     }
-    // Verifica se é um objeto Timestamp do Firestore
-    if (typeof timestamp.toDate === 'function') {
-      return timestamp.toDate().toLocaleDateString('pt-BR');
-    }
-    return 'Data inválida';
   };
 
   return (
@@ -171,11 +170,11 @@ export default function InvestigationsPage() {
         <div className="flex justify-center mb-8">
           <Button 
             onClick={() => { 
-              resetForm(); // Primeiro limpa qualquer estado de edição/campos
-              setShowForm(true); // Então mostra o formulário
+              resetForm(); 
+              setShowForm(true); 
             }} 
             size="lg" 
-            disabled={isLoading || isSubmitting} // Desabilita se carregando ou submetendo algo
+            disabled={isLoading || isSubmitting}
           >
             <PlusCircle className="mr-2 h-5 w-5" /> Nova Investigação
           </Button>
@@ -227,8 +226,8 @@ export default function InvestigationsPage() {
                   type="button" 
                   variant="outline" 
                   onClick={() => {
-                    resetForm();      // Limpa os campos
-                    setShowForm(false); // Esconde o formulário
+                    resetForm();      
+                    setShowForm(false); 
                   }} 
                   disabled={isSubmitting}
                 >
@@ -305,5 +304,3 @@ export default function InvestigationsPage() {
     </div>
   );
 }
-
-    

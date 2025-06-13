@@ -5,18 +5,24 @@ import { supabase } from './client';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
 
 const INVESTIGATIONS_TABLE = 'investigations';
-const INVESTIGATION_MEDIA_BUCKET = 'investigation_media';
+const INVESTIGATION_MEDIA_BUCKET = 'investigationmedia'; // <--- ATUALIZADO AQUI
 
 // Helper to get public URL for Supabase Storage
 const getPublicUrl = (filePath: string): string | null => {
-  const { data } = supabase.storage.from(INVESTIGATION_MEDIA_BUCKET).getPublicUrl(filePath);
-  return data?.publicUrl || null;
+  try {
+    const { data } = supabase.storage.from(INVESTIGATION_MEDIA_BUCKET).getPublicUrl(filePath);
+    return data?.publicUrl || null;
+  } catch (error) {
+    console.error(`[SupabaseService] Error getting public URL for ${filePath} in bucket ${INVESTIGATION_MEDIA_BUCKET}:`, error);
+    return null;
+  }
 };
 
 
 export async function addInvestigation(
   investigationData: Omit<InvestigationInput, 'id' | 'creationDate' | 'roNumber'>
 ): Promise<Investigation> {
+  console.log("[SupabaseService] addInvestigation called with data:", JSON.stringify(investigationData, null, 2));
   try {
     const { count, error: countError } = await supabase
       .from(INVESTIGATIONS_TABLE)
@@ -24,22 +30,22 @@ export async function addInvestigation(
 
     if (countError) {
       console.error("[SupabaseService] Error fetching investigation count for R.O. number:", countError);
-      throw new Error("Failed to fetch investigation count. Details: " + countError.message);
+      throw new Error(`Failed to fetch investigation count. Supabase message: ${countError.message}`);
     }
     const newRoNumber = `${(count || 0) + 1}.0`;
-    console.warn("[SupabaseService] Using client-side count for R.O. number generation. This may not be robust in concurrent scenarios. Current count:", count);
+    console.warn(`[SupabaseService] Using client-side count for R.O. number generation. This may not be robust in concurrent scenarios. Current count: ${count}, New R.O.: ${newRoNumber}`);
 
     const payloadToInsert = {
       title: investigationData.title,
       description: investigationData.description,
-      assigned_investigator: investigationData.assignedInvestigator,
+      assigned_investigator: investigationData.assignedInvestigator, // snake_case for Supabase
       status: investigationData.status,
-      occurrence_date: investigationData.occurrenceDate,
+      occurrence_date: investigationData.occurrenceDate, // snake_case for Supabase
       ro_number: newRoNumber,
-      media_urls: investigationData.mediaUrls || [], // Start with passed media_urls or empty
+      media_urls: investigationData.mediaUrls || [],
     };
     
-    console.log("[SupabaseService] Attempting to insert investigation with payload:", JSON.stringify(payloadToInsert));
+    console.log("[SupabaseService] Attempting to insert investigation with payload:", JSON.stringify(payloadToInsert, null, 2));
 
     const { data: insertedData, error: insertError } = await supabase
       .from(INVESTIGATIONS_TABLE)
@@ -49,7 +55,14 @@ export async function addInvestigation(
 
     if (insertError || !insertedData) {
       console.error('[SupabaseService] Error inserting investigation (step 1). Supabase error details:', insertError);
-      throw new Error(`Failed to add investigation initial record. Supabase message: ${insertError?.message || 'Unknown error during insert'}`);
+      // Construct a more informative error message
+      let errorMessage = 'Failed to add investigation initial record.';
+      if (insertError) {
+        errorMessage += ` Supabase message: ${insertError.message}`;
+        if ((insertError as any).details) errorMessage += ` Details: ${(insertError as any).details}`;
+        if ((insertError as any).hint) errorMessage += ` Hint: ${(insertError as any).hint}`;
+      }
+      throw new Error(errorMessage);
     }
     
     console.log("[SupabaseService] Investigation record inserted successfully:", insertedData.id);
@@ -67,8 +80,10 @@ export async function addInvestigation(
     };
 
   } catch (error: any) {
-    console.error('[SupabaseService] Error in addInvestigation service:', error.message, error);
-    throw new Error(error.message || 'An unexpected error occurred in addInvestigation service.');
+    console.error('[SupabaseService] FATAL ERROR in addInvestigation service:', error);
+    // Ensure the re-thrown error message is useful and a simple string
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(message || 'An unexpected error occurred in addInvestigation service.');
   }
 }
 
@@ -98,8 +113,9 @@ export async function getInvestigations(): Promise<Investigation[]> {
       mediaUrls: inv.media_urls || [],
     }));
   } catch (error: any) {
-    console.error("[SupabaseService] Error in getInvestigations service from Supabase: ", error.message, error);
-    throw new Error(error.message || "Failed to get investigations due to an unexpected error.");
+    console.error("[SupabaseService] FATAL ERROR in getInvestigations service from Supabase: ", error);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(message || "Failed to get investigations due to an unexpected error.");
   }
 }
 
@@ -113,7 +129,7 @@ export async function updateInvestigation(id: string, updates: Partial<Omit<Inve
     if (updates.occurrenceDate !== undefined) supabaseUpdates.occurrence_date = updates.occurrenceDate;
     if (updates.mediaUrls !== undefined) supabaseUpdates.media_urls = updates.mediaUrls;
 
-    console.log(`[SupabaseService] Attempting to update investigation ${id} with payload:`, JSON.stringify(supabaseUpdates));
+    console.log(`[SupabaseService] Attempting to update investigation ${id} with payload:`, JSON.stringify(supabaseUpdates, null, 2));
     const { data, error } = await supabase
       .from(INVESTIGATIONS_TABLE)
       .update(supabaseUpdates)
@@ -140,47 +156,31 @@ export async function updateInvestigation(id: string, updates: Partial<Omit<Inve
     };
 
   } catch (error: any) {
-    console.error("[SupabaseService] Error updating investigation in Supabase: ", error.message, error);
-    throw new Error(error.message || "An unexpected error occurred in updateInvestigation service.");
+    console.error("[SupabaseService] FATAL ERROR updating investigation in Supabase: ", error);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(message || "An unexpected error occurred in updateInvestigation service.");
   }
 }
 
 export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string[]): Promise<void> {
+  console.log(`[SupabaseService] deleteInvestigation called for id: ${id}`, mediaUrlsToDelete);
   try {
     if (mediaUrlsToDelete && mediaUrlsToDelete.length > 0) {
-      const filePaths = mediaUrlsToDelete.map(url => {
-        try {
-          const urlObject = new URL(url);
-          // More robustly extract path after the bucket name part
-          const pathSegments = urlObject.pathname.split('/');
-          const bucketIndex = pathSegments.indexOf(INVESTIGATION_MEDIA_BUCKET);
-          if (bucketIndex !== -1 && bucketIndex < pathSegments.length -1) {
-            return pathSegments.slice(bucketIndex + 1).join('/');
-          }
-          console.warn(`[SupabaseService] Could not reliably extract file path from URL for deletion: ${url}`);
-          return null;
-        } catch (e) {
-          console.warn(`[SupabaseService] Invalid URL format for deletion: ${url}`, e);
-          return null;
-        }
-      }).filter(path => path !== null) as string[];
-
-      if (filePaths.length > 0) {
-        console.log(`[SupabaseService] Attempting to delete media files from storage:`, filePaths);
-        const { error: deleteStorageError } = await supabase.storage
-          .from(INVESTIGATION_MEDIA_BUCKET)
-          .remove(filePaths);
-
-        if (deleteStorageError) {
-          console.error('[SupabaseService] Error deleting files from Supabase Storage:', deleteStorageError.message, deleteStorageError);
-          // Decide if this should be a critical error. For now, log and continue to delete DB record.
+      console.log(`[SupabaseService] Attempting to delete ${mediaUrlsToDelete.length} media files from storage for investigation ${id}.`);
+      const deletePromises = mediaUrlsToDelete.map(url => deleteFileFromSupabaseStorageUrl(url));
+      
+      const results = await Promise.allSettled(deletePromises);
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          console.warn(`[SupabaseService] Failed to delete media file ${mediaUrlsToDelete[index]} during investigation deletion:`, result.reason);
+          // Non-critical, log and continue to delete DB record.
         } else {
-          console.log('[SupabaseService] Successfully deleted files from Supabase Storage:', filePaths);
+          console.log(`[SupabaseService] Successfully processed deletion for media file ${mediaUrlsToDelete[index]}.`);
         }
-      }
+      });
     }
 
-    console.log(`[SupabaseService] Attempting to delete investigation record with id: ${id}`);
+    console.log(`[SupabaseService] Attempting to delete investigation record with id: ${id} from database.`);
     const { error: deleteDbError } = await supabase
       .from(INVESTIGATIONS_TABLE)
       .delete()
@@ -192,8 +192,9 @@ export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string
     }
     console.log(`[SupabaseService] Investigation record ${id} deleted successfully from database.`);
   } catch (error: any) {
-    console.error("[SupabaseService] Error deleting investigation from Supabase: ", error.message, error);
-    throw new Error(error.message || "An unexpected error occurred in deleteInvestigation service.");
+    console.error("[SupabaseService] FATAL ERROR deleting investigation from Supabase: ", error);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(message || "An unexpected error occurred in deleteInvestigation service.");
   }
 }
 
@@ -201,16 +202,18 @@ export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string
 // --- File Storage Specific Functions ---
 
 export async function uploadFileToSupabaseStorage(file: File, investigationId: string): Promise<string> {
+  console.log(`[SupabaseStorageService] uploadFileToSupabaseStorage called for file: ${file.name}, investigationId: ${investigationId}`);
   try {
-    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-    
     if (!investigationId || typeof investigationId !== 'string' || investigationId.trim() === '') {
-        console.error('[SupabaseStorageService] Invalid investigationId for upload:', investigationId);
-        throw new Error('Invalid Investigation ID provided for file upload.');
+        const invalidIdError = '[SupabaseStorageService] Invalid investigationId for upload. Must be a non-empty string.';
+        console.error(invalidIdError, 'Received:', investigationId);
+        throw new Error(invalidIdError);
     }
+
+    const fileName = `${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
     const filePath = `public/${investigationId}/${fileName}`; 
 
-    console.log(`[SupabaseStorageService] Attempting to upload ${file.name} to path: ${filePath}`);
+    console.log(`[SupabaseStorageService] Attempting to upload ${file.name} to path: ${filePath} in bucket ${INVESTIGATION_MEDIA_BUCKET}`);
 
     const { data, error: uploadError } = await supabase.storage
       .from(INVESTIGATION_MEDIA_BUCKET)
@@ -220,22 +223,24 @@ export async function uploadFileToSupabaseStorage(file: File, investigationId: s
       });
 
     if (uploadError) {
-      console.error(`[SupabaseStorageService] Supabase Storage upload error for ${filePath}:`, uploadError.message, uploadError);
+      console.error(`[SupabaseStorageService] Supabase Storage upload error for ${filePath}:`, uploadError);
       throw new Error(`Upload failed for ${file.name}: ${uploadError.message}`);
     }
 
     if (!data || !data.path) {
-       console.error(`[SupabaseStorageService] Supabase Storage upload error for ${filePath}: No path returned.`);
-       throw new Error(`Upload failed for ${file.name}: No path returned from storage.`);
+       const noPathError = `[SupabaseStorageService] Supabase Storage upload error for ${filePath}: No path returned.`;
+       console.error(noPathError);
+       throw new Error(noPathError);
     }
 
     const publicURL = getPublicUrl(data.path);
     if (!publicURL) {
-      console.error(`[SupabaseStorageService] Could not get public URL for ${data.path}`);
+      console.error(`[SupabaseStorageService] Could not get public URL for ${data.path} in bucket ${INVESTIGATION_MEDIA_BUCKET}. Attempting to remove orphaned file.`);
       try {
         await supabase.storage.from(INVESTIGATION_MEDIA_BUCKET).remove([data.path]);
+        console.log(`[SupabaseStorageService] Orphaned file ${data.path} removed successfully.`);
       } catch (removeError: any) {
-        console.warn(`[SupabaseStorageService] Failed to remove orphaned file ${data.path}:`, removeError.message);
+        console.warn(`[SupabaseStorageService] Failed to remove orphaned file ${data.path} from bucket ${INVESTIGATION_MEDIA_BUCKET}:`, removeError.message);
       }
       throw new Error(`Failed to get public URL for ${file.name} after upload.`);
     }
@@ -244,13 +249,14 @@ export async function uploadFileToSupabaseStorage(file: File, investigationId: s
     return publicURL;
 
   } catch (error: any) {
-    // Catch any error from within the function, log it, and re-throw a simple Error
-    console.error('[SupabaseStorageService] Error in uploadFileToSupabaseStorage service function:', error.message, error);
-    throw new Error(error.message || 'An unexpected error occurred during file upload service operation.');
+    console.error(`[SupabaseStorageService] FATAL ERROR during uploadFileToSupabaseStorage. Original error:`, error);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(message || 'An unexpected error occurred during file upload service operation.');
   }
 }
 
 export async function deleteFileFromSupabaseStorageUrl(fileUrl: string): Promise<void> {
+  console.log(`[SupabaseStorageService] deleteFileFromSupabaseStorageUrl called for URL: ${fileUrl}`);
  try {
     if (!fileUrl || typeof fileUrl !== 'string') {
       console.warn("[SupabaseStorageService] Invalid fileUrl provided for deletion:", fileUrl);
@@ -260,40 +266,51 @@ export async function deleteFileFromSupabaseStorageUrl(fileUrl: string): Promise
     let filePath = '';
     try {
       const urlObject = new URL(fileUrl);
-      const pathSegments = urlObject.pathname.split('/');
-      const bucketIndex = pathSegments.indexOf(INVESTIGATION_MEDIA_BUCKET);
-      if (bucketIndex !== -1 && bucketIndex < pathSegments.length -1) {
-        filePath = decodeURIComponent(pathSegments.slice(bucketIndex + 1).join('/')); // decode URI component for special chars
+      // Path extraction logic: /object/public/bucket_name/actual_file_path...
+      const pathSegments = urlObject.pathname.split('/'); 
+      const objectPublicIndex = pathSegments.indexOf('public'); // Supabase public URLs often look like /object/public/bucket_name/...
+      
+      if (objectPublicIndex !== -1 && pathSegments.length > objectPublicIndex + 2) {
+        // The segment after 'public' should be the bucket name, and then the rest is the file path.
+        const bucketNameInUrl = pathSegments[objectPublicIndex + 1];
+        if (bucketNameInUrl !== INVESTIGATION_MEDIA_BUCKET) {
+            console.warn(`[SupabaseStorageService] Mismatch: Bucket name in URL ('${bucketNameInUrl}') does not match expected bucket ('${INVESTIGATION_MEDIA_BUCKET}'). Path extraction might be incorrect for: ${fileUrl}`);
+            // Fallback or more generic extraction might be needed if URL structure varies widely.
+            // For now, let's assume a structure that includes the bucket name explicitly after /public/
+        }
+        filePath = decodeURIComponent(pathSegments.slice(objectPublicIndex + 2).join('/'));
       } else {
-        console.warn(`[SupabaseStorageService] Could not extract file path from URL for deletion: ${fileUrl}`);
+        console.warn(`[SupabaseStorageService] Could not reliably extract file path from URL structure for deletion: ${fileUrl}. Expected '/object/public/${INVESTIGATION_MEDIA_BUCKET}/...' structure.`);
         return;
       }
     } catch (e) {
-      console.warn(`[SupabaseStorageService] Invalid URL format for deletion: ${fileUrl}`, e);
+      console.warn(`[SupabaseStorageService] Invalid URL format for deletion, cannot parse: ${fileUrl}`, e);
       return;
     }
 
     if (!filePath) {
-      console.warn("[SupabaseStorageService] Extracted file path is empty, cannot delete.");
+      console.warn("[SupabaseStorageService] Extracted file path is empty from URL, cannot delete:", fileUrl);
       return;
     }
 
-    console.log(`[SupabaseStorageService] Attempting to delete file from path: ${filePath}`);
+    console.log(`[SupabaseStorageService] Attempting to delete file from path: '${filePath}' in bucket '${INVESTIGATION_MEDIA_BUCKET}'`);
     const { data, error } = await supabase.storage
       .from(INVESTIGATION_MEDIA_BUCKET)
       .remove([filePath]);
 
     if (error) {
-      if (error.message.includes("Not found") || (error as any).statusCode === 404) { // More specific check for not found
-           console.warn(`[SupabaseStorageService] File not found, could not delete: ${filePath} (Error: ${error.message})`);
-           return; 
+      // Common error: "The resource was not found" (e.g. if already deleted or path is wrong)
+      if (error.message && (error.message.includes("Not found") || error.message.includes("The resource was not found"))) { 
+           console.warn(`[SupabaseStorageService] File not found in bucket ${INVESTIGATION_MEDIA_BUCKET} at path '${filePath}', could not delete (Error: ${error.message})`);
+           return; // Not a critical error if file is already gone
       }
-      console.error(`[SupabaseStorageService] Error deleting file ${filePath}:`, error.message, error);
+      console.error(`[SupabaseStorageService] Error deleting file '${filePath}' from bucket ${INVESTIGATION_MEDIA_BUCKET}:`, error);
       throw new Error(`Failed to delete file from storage: ${error.message}`); 
     }
-    console.log(`[SupabaseStorageService] File deleted successfully: ${filePath}`, data);
+    console.log(`[SupabaseStorageService] File deleted successfully from bucket ${INVESTIGATION_MEDIA_BUCKET}: ${filePath}`, data);
   } catch (error: any) {
-    console.error('[SupabaseStorageService] Error in deleteFileFromSupabaseStorageUrl service function:', error.message, error);
-    throw new Error(error.message || 'An unexpected error occurred while deleting file from storage url.');
+    console.error('[SupabaseStorageService] FATAL ERROR in deleteFileFromSupabaseStorageUrl service function:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(message || 'An unexpected error occurred while deleting file from storage url.');
   }
 }

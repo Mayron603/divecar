@@ -45,8 +45,8 @@ import {
 
 
 const INVESTIGATION_MEDIA_BUCKET = 'investigationmedia';
-const PASSWORD_FOR_CREATE = "criar123";
-const PASSWORD_FOR_DELETE = "apagar789";
+const PASSWORD_FOR_CREATE = "Mayr0n@2025!";
+const PASSWORD_FOR_DELETE = "Mayr0n*19@X!";
 
 
 const getErrorMessage = (error: any): string => {

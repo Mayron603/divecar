@@ -5,8 +5,8 @@ import { Footer } from '@/components/layout/footer';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'Morumbi Tactical Force Hub',
-  description: 'Centralized information hub for the Morumbi Tactical Force.',
+  title: 'DIVECAR Osasco - Polícia Civil',
+  description: 'Portal da Divisão de Investigações sobre Furtos e Roubos de Veículos e Cargas de Osasco.',
 };
 
 export default function RootLayout({

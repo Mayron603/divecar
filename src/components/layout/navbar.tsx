@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Shield, Home, Users, ScrollText, Info } from 'lucide-react';
+import { Landmark, Home, Users, ScrollText, Info, Building } from 'lucide-react'; // Changed Shield to Landmark/Building
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
@@ -16,8 +16,8 @@ export function Navbar() {
     <header className="bg-primary text-primary-foreground shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
         <Link href="/" className="flex items-center gap-3">
-          <Shield className="h-10 w-10 text-accent" />
-          <span className="text-xl md:text-2xl font-headline font-semibold">Força Tática Morumbi</span>
+          <Building className="h-10 w-10 text-accent" /> {/* Changed Icon */}
+          <span className="text-xl md:text-2xl font-headline font-semibold">DIVECAR Osasco</span>
         </Link>
         
         <nav className="hidden md:flex items-center space-x-2 lg:space-x-4">

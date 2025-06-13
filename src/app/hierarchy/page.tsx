@@ -3,19 +3,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { LucideIcon } from 'lucide-react';
 import { 
   Users, 
-  Shield, 
-  Award, 
-  User, 
-  Users2, 
-  Badge, 
-  Star, 
-  GraduationCap, 
-  ChevronUp, 
-  ChevronsUp, 
-  ShieldCheck, 
-  Briefcase, 
-  Landmark,
-  TowerControl
+  Briefcase, // Delegado
+  FileText,  // Escrivão
+  Search,    // Investigador
+  User,      // Agente Policial
+  Fingerprint, // Papiloscopista
+  Award,     // Delegado Chefe/Titular
+  Star,      // Destaque para Chefias
+  ShieldCheck // Símbolo genérico de autoridade/polícia
 } from 'lucide-react';
 
 interface Rank {
@@ -27,82 +22,52 @@ interface Rank {
 
 const hierarchyData: Rank[] = [
   {
-    name: "Soldado",
-    exampleName: "Sd. PM Silva (Ex: João Silva)",
-    description: "A base da força, responsável pelo patrulhamento ostensivo e pela execução direta das ordens.",
-    icon: User,
-  },
-  {
-    name: "Cabo",
-    exampleName: "Cb. PM Oliveira (Ex: Maria Oliveira)",
-    description: "Graduado com experiência, auxilia o Sargento e lidera pequenas frações de tropa em missões específicas.",
-    icon: Shield,
-  },
-  {
-    name: "3º Sargento",
-    exampleName: "3º Sgt. PM Souza (Ex: Carlos Souza)",
-    description: "Primeira graduação do círculo de Sargentos, elo fundamental entre o comando e a tropa, liderando equipes e instruindo.",
-    icon: Users2,
-  },
-  {
-    name: "2º Sargento",
-    exampleName: "2º Sgt. PM Costa (Ex: Ana Costa)",
-    description: "Sargento com maior experiência e responsabilidade, supervisiona equipes e missões de maior complexidade.",
-    icon: Badge,
-  },
-  {
-    name: "1º Sargento",
-    exampleName: "1º Sgt. PM Pereira (Ex: Pedro Pereira)",
-    description: "Graduado experiente, auxilia os oficiais no planejamento e execução de operações, e na administração.",
-    icon: Star,
-  },
-  {
-    name: "Subtenente",
-    exampleName: "Subten. PM Santos (Ex: Laura Santos)",
-    description: "Graduação máxima entre os praças, possui vasta experiência e atua como principal assessor dos oficiais em questões de tropa.",
+    name: "Delegado de Polícia Titular",
+    exampleName: "Dr. Carlos Alberto Nobre",
+    description: "Responsável pela direção e coordenação geral da DIVECAR, define estratégias investigativas e gerencia a unidade.",
     icon: Award, 
   },
   {
-    name: "Aspirante a Oficial",
-    exampleName: "Asp. Of. PM Lima (Ex: Bruno Lima)",
-    description: "Em período de estágio probatório após a formação, preparando-se para o primeiro posto de oficial.",
-    icon: GraduationCap,
-  },
-  {
-    name: "2º Tenente",
-    exampleName: "2º Ten. PM Almeida (Ex: Juliana Almeida)",
-    description: "Primeiro posto do oficialato, comanda pelotões e assume responsabilidades de liderança em operações.",
-    icon: ChevronUp,
-  },
-  {
-    name: "1º Tenente",
-    exampleName: "1º Ten. PM Ferreira (Ex: Rafael Ferreira)",
-    description: "Oficial intermediário, comanda pelotões ou seções, e pode assumir funções de staff.",
-    icon: ChevronsUp,
-  },
-  {
-    name: "Capitão",
-    exampleName: "Cap. PM Gomes (Ex: Fernanda Gomes)",
-    description: "Comanda companhias ou assume chefias de seções administrativas/operacionais, elo entre oficiais subalternos e superiores.",
-    icon: ShieldCheck,
-  },
-  {
-    name: "Major",
-    exampleName: "Maj. PM Rodrigues (Ex: Ricardo Rodrigues)",
-    description: "Oficial superior, assume funções de estado-maior, chefia de seções ou subcomando de unidades.",
+    name: "Delegado de Polícia",
+    exampleName: "Dra. Ana Paula Matos",
+    description: "Preside inquéritos policiais, coordena equipes de investigação, analisa provas e representa pela decretação de medidas cautelares.",
     icon: Briefcase,
   },
   {
-    name: "Tenente-Coronel",
-    exampleName: "Ten. Cel. PM Martins (Ex: Patrícia Martins)",
-    description: "Oficial superior de alto escalão, comanda batalhões ou grandes seções, ou atua como subcomandante da força.",
-    icon: Landmark,
+    name: "Escrivão de Polícia Chefe",
+    exampleName: "Sr. João Ricardo Silva",
+    description: "Coordena os serviços cartorários da delegacia, supervisiona a formalização dos atos de polícia judiciária e o fluxo de documentos.",
+    icon: Star, // Destaque para chefia de cartório
   },
   {
-    name: "Coronel",
-    exampleName: "Cel. PM Barbosa (Ex: Marcelo Barbosa)",
-    description: "Posto máximo da carreira, comanda grandes unidades, diretorias ou assume o Comando Geral da Força.",
-    icon: TowerControl,
+    name: "Escrivão de Polícia",
+    exampleName: "Sra. Maria Eduarda Costa",
+    description: "Responsável pela formalização dos atos de polícia judiciária, como depoimentos, autos de prisão, e pela guarda e organização de inquéritos.",
+    icon: FileText,
+  },
+  {
+    name: "Investigador de Polícia Chefe",
+    exampleName: "Sr. Marcos Vinicius Lima",
+    description: "Lidera equipes de investigadores em campo, planeja operações, distribui tarefas e orienta as diligências investigativas.",
+    icon: ShieldCheck, // Destaque para chefia de investigação
+  },
+  {
+    name: "Investigador de Polícia",
+    exampleName: "Sr. Paulo Sérgio Oliveira",
+    description: "Realiza diligências investigativas, coleta de provas, oitivas, campanas e outras atividades para elucidação de crimes.",
+    icon: Search,
+  },
+  {
+    name: "Agente Policial",
+    exampleName: "Sra. Laura Mendes",
+    description: "Auxilia nas atividades investigativas e operacionais, executa mandados, conduz viaturas e presta apoio logístico às equipes.",
+    icon: User,
+  },
+  {
+    name: "Papiloscopista Policial",
+    exampleName: "Sr. Ricardo Alves",
+    description: "Coleta e analisa impressões digitais e outros vestígios papiloscópicos para identificação humana em locais de crime e documentos.",
+    icon: Fingerprint,
   },
 ];
 
@@ -125,8 +90,8 @@ export default function HierarchyPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Nossa Hierarquia"
-        description="Conheça a estrutura de postos e graduações da Força Tática de Morumbi, desde a base até o mais alto comando."
+        title="Hierarquia da DIVECAR Osasco"
+        description="Conheça os cargos e funções que compõem a estrutura da Divisão de Investigações sobre Furtos e Roubos de Veículos e Cargas."
         icon={Users}
       />
       <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">

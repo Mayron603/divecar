@@ -1,9 +1,9 @@
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LucideIcon } from 'lucide-react';
-import { ScrollText, Landmark, CalendarDays, ShieldAlert } from 'lucide-react';
+import { ScrollText, Landmark, CalendarDays, SearchCheck } from 'lucide-react'; // ShieldAlert trocado por SearchCheck (Investigação Concluída)
 
-const AwardIcon = ({className}: {className?: string}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>;
+const AwardIcon = ({className}: {className?: string}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>; // Ícone de brasão/certificado mais genérico
 
 interface HistoryEvent {
   year: string;
@@ -14,33 +14,33 @@ interface HistoryEvent {
 
 const historyEvents: HistoryEvent[] = [
   {
-    year: "1995",
-    title: "Fundação da Força Tática de Morumbi",
-    description: "A Força Tática de Morumbi foi estabelecida, originária da cidade Grande Metrópole, onde seus membros atuavam como parte do 27º Batalhão de Polícia Militar (BPM). Trouxeram sua experiência e dedicação para combater o crime organizado e prover segurança especializada à população de Morumbi.",
+    year: "2005", // Ano fictício
+    title: "Criação da Delegacia Especializada em Osasco",
+    description: "Com o aumento da complexidade dos crimes de furto e roubo de veículos e cargas, é estabelecida uma delegacia especializada em Osasco para centralizar as investigações e otimizar os recursos no combate a essas modalidades criminosas.",
     icon: Landmark,
   },
   {
-    year: "2002",
-    title: "Primeira Grande Operação",
-    description: "Realização da primeira operação de grande escala em Morumbi, resultando na desarticulação de uma importante quadrilha local e no aumento da confiança da comunidade na recém-formada força.",
-    icon: ShieldAlert,
+    year: "2012", // Ano fictício
+    title: "Primeiros Resultados Expressivos",
+    description: "A delegacia especializada, precursora da DIVECAR, realiza operações significativas que resultam na desarticulação de quadrilhas atuantes na região de Osasco, elevando a confiança da população no trabalho investigativo.",
+    icon: SearchCheck,
   },
   {
-    year: "2010",
-    title: "Modernização e Treinamento",
-    description: "Investimento em novos equipamentos, tecnologias e programas de treinamento avançado para os oficiais, elevando o padrão de atuação da força e adaptando-se aos novos desafios de segurança.",
+    year: "2018", // Ano fictício
+    title: "Elevação para Divisão - Nasce a DIVECAR Osasco",
+    description: "Devido à sua crescente importância estratégica e aos resultados alcançados, a unidade é elevada à categoria de Divisão, tornando-se a DIVECAR Osasco, com maior autonomia e recursos para investigações de alta complexidade.",
     icon: CalendarDays,
   },
   {
-    year: "2018",
-    title: "Reconhecimento Estadual",
-    description: "A Força Tática de Morumbi recebe reconhecimento estadual por suas contribuições significativas para a segurança pública e notável redução da criminalidade na região.",
+    year: "2023", // Ano fictício
+    title: "Reconhecimento e Modernização",
+    description: "A DIVECAR Osasco recebe reconhecimento por suas contribuições no combate ao crime organizado e investe em tecnologia e capacitação de seus policiais para enfrentar os novos desafios da criminalidade moderna.",
     icon: AwardIcon,
   },
   {
     year: "Presente",
-    title: "Compromisso Contínuo",
-    description: "Continuamos dedicados à nossa missão original, adaptando-nos constantemente aos novos desafios e trabalhando incansavelmente para proteger e servir a comunidade de Morumbi.",
+    title: "Compromisso Contínuo com a Investigação",
+    description: "A DIVECAR Osasco segue dedicada à sua missão, aprimorando constantemente suas técnicas investigativas e de inteligência para proteger o patrimônio e levar justiça à comunidade de Osasco.",
     icon: ScrollText,
   },
 ];
@@ -50,8 +50,8 @@ export default function HistoryPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Nossa História"
-        description="Uma jornada de dedicação, bravura e serviço à comunidade de Morumbi. Conheça os marcos que moldaram a nossa força."
+        title="Nossa História - DIVECAR Osasco"
+        description="Uma trajetória de dedicação à investigação criminal e ao combate aos furtos e roubos de veículos e cargas em Osasco."
         icon={ScrollText}
       />
       <div className="relative max-w-3xl mx-auto">

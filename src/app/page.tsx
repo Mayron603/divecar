@@ -1,26 +1,26 @@
 import { HeroSection } from '@/components/sections/hero-section';
 import { InfoCard } from '@/components/common/info-card';
-import { Users, ScrollText, Info, ShieldCheck, Video, Shirt } from 'lucide-react';
+import { Users, ScrollText, Info, Building, Video, Shirt } from 'lucide-react'; // Changed ShieldCheck to Building
 import { PageHeader } from '@/components/common/page-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function HomePage() {
   const infoCardsData = [
     {
       title: "Nossa Hierarquia",
-      description: "Entenda a estrutura organizacional e a cadeia de comando da Força Tática de Morumbi.",
+      description: "Conheça a estrutura de cargos e carreiras da Polícia Civil na DIVECAR Osasco.",
       href: "/hierarchy",
       icon: Users,
     },
     {
       title: "Nossa História",
-      description: "Conheça a trajetória, os marcos e as conquistas da nossa força ao longo dos anos.",
+      description: "Descubra a trajetória e os marcos importantes da DIVECAR em Osasco.",
       href: "/history",
       icon: ScrollText,
     },
     {
       title: "Sobre Nós",
-      description: "Descubra nossa missão, visão, valores e o compromisso com a segurança da comunidade.",
+      description: "Saiba mais sobre a missão, visão e valores da DIVECAR Osasco.",
       href: "/about",
       icon: Info,
     },
@@ -32,8 +32,8 @@ export default function HomePage() {
 
       <section>
         <PageHeader 
-          title="Explore Nossa Força"
-          description="Dedicados a servir e proteger a cidade de Morumbi com honra, coragem e profissionalismo."
+          title="Explore a DIVECAR Osasco"
+          description="Dedicados à investigação e repressão de furtos e roubos de veículos e cargas em Osasco."
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {infoCardsData.map((card) => (
@@ -51,7 +51,7 @@ export default function HomePage() {
       <section className="py-12">
         <PageHeader
           title="Nossa Identidade Visual"
-          description="Conheça os detalhes e o simbolismo por trás dos uniformes da Força Tática de Morumbi."
+          description="Conheça os detalhes e o simbolismo por trás dos uniformes e insígnias da Polícia Civil."
           icon={Shirt}
         />
         <div className="flex justify-center">
@@ -64,9 +64,9 @@ export default function HomePage() {
                 muted
                 playsInline 
                 preload="metadata"
-                aria-label="Vídeo institucional da Força Tática de Morumbi - Uniformes"
+                aria-label="Vídeo institucional da Polícia Civil - Uniformes"
               >
-                <source src="/videos/PMESP.mp4" type="video/mp4" />
+                <source src="/videos/PMESP.mp4" type="video/mp4" /> {/* Manter o vídeo por enquanto, mas idealmente seria trocado */}
                 Seu navegador não suporta o elemento de vídeo.
               </video>
             </CardContent>
@@ -75,10 +75,10 @@ export default function HomePage() {
       </section>
 
       <section className="text-center py-12 bg-card p-8 rounded-lg shadow-xl">
-        <ShieldCheck className="h-16 w-16 text-accent mx-auto mb-6"/>
-        <h2 className="text-3xl font-headline font-bold text-primary mb-4">Compromisso com Morumbi</h2>
+        <Building className="h-16 w-16 text-accent mx-auto mb-6"/> {/* Changed Icon */}
+        <h2 className="text-3xl font-headline font-bold text-primary mb-4">Compromisso com Osasco</h2>
         <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-          A Força Tática de Morumbi é composta por profissionais altamente treinados e dedicados, prontos para enfrentar os desafios da segurança pública moderna. Nosso objetivo é garantir um ambiente seguro e pacífico para todos os cidadãos, trabalhando em estreita colaboração com a comunidade.
+          A DIVECAR Osasco é composta por profissionais dedicados e altamente qualificados, focados na investigação criminal para desvendar e coibir crimes de furto e roubo de veículos e cargas, visando a segurança e a justiça para a população de Osasco.
         </p>
       </section>
     </div>

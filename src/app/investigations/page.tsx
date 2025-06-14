@@ -667,7 +667,7 @@ export default function InvestigationsPage() {
               </div>
 
               <div>
-                <Label htmlFor="mediaFiles">Adicionar Mídias (Imagens/Vídeos)</Label>
+                <Label htmlFor="mediaFiles">Adicionar Mídias (Imagens/Vídeos - Opcional)</Label>
                 <Input
                   id="mediaFiles"
                   type="file"

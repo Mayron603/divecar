@@ -4,12 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { LucideIcon } from 'lucide-react';
 import { 
   Users, 
-  Briefcase,  // Delegado
-  FileText,  // Escrivão
-  Search,    // Investigador
-  User,      // Agente Policial
-  ClipboardCheck, // Médico Legista 
-  FlaskConical // Perito Criminal
+  Briefcase,
+  FileText,
+  Search,
+  User,
+  ClipboardCheck,
+  FlaskConical
 } from 'lucide-react';
 
 interface Rank {

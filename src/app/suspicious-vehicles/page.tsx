@@ -538,15 +538,15 @@ export default function SuspiciousVehiclesPage() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="suspectName">Nome do Suspeito (Opcional)</Label>
+                <Label htmlFor="suspectName">Nome do Suspeito</Label>
                 <Input id="suspectName" value={suspectName} onChange={(e) => setSuspectName(e.target.value)} placeholder="Nome ou apelido" disabled={isSubmitting || isUploading} />
               </div>
               <div>
-                <Label htmlFor="suspectPhone">Contato do Suspeito (Opcional)</Label>
+                <Label htmlFor="suspectPhone">Contato do Suspeito</Label>
                 <Input id="suspectPhone" type="tel" value={suspectPhone} onChange={(e) => setSuspectPhone(e.target.value)} placeholder="Telefone ou outro contato" disabled={isSubmitting || isUploading} />
               </div>
               <div>
-                <Label htmlFor="notes">Observações (Opcional)</Label>
+                <Label htmlFor="notes">Observações</Label>
                 <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Detalhes adicionais, comportamento, local frequente, etc." rows={3} disabled={isSubmitting || isUploading} />
               </div>
 
@@ -715,4 +715,3 @@ export default function SuspiciousVehiclesPage() {
     </div>
   );
 }
-

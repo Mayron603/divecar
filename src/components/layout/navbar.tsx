@@ -1,6 +1,6 @@
 
 import Link from 'next/link';
-import { Landmark, Home, Users, ScrollText, Info, Building, FolderSearch, Car, CarFront, AlertTriangle } from 'lucide-react';
+import { Landmark, Home, Users, ScrollText, Info, Building, FolderSearch, Car, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
@@ -12,7 +12,7 @@ const navItems = [
   { href: '/about', label: 'Sobre Nós', icon: <Info className="h-5 w-5" /> },
   { href: '/investigations', label: 'Investigações', icon: <FolderSearch className="h-5 w-5" /> },
   { href: '/suspicious-vehicles', label: 'Veíc. Suspeitos', icon: <AlertTriangle className="h-5 w-5" /> },
-  { href: '/stolen-vehicles', label: 'Veíc. Furtados', icon: <CarFront className="h-5 w-5" /> },
+  // { href: '/stolen-vehicles', label: 'Veíc. Furtados', icon: <CarFront className="h-5 w-5" /> }, // Link removido
 ];
 
 export function Navbar() {

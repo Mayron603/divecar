@@ -1,3 +1,4 @@
+
 // src/lib/supabase/server.ts
 // This client is for use in Server Components, Server Actions, and Route Handlers
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
@@ -14,6 +15,11 @@ export const createSupabaseServerClient = (cookieStore: ReturnType<typeof NextCo
     // This error will be caught server-side
     throw new Error(message);
   }
+  if (!supabaseUrl.startsWith('http://') && !supabaseUrl.startsWith('https://')) {
+    const message = `Supabase URL "${supabaseUrl}" does not seem to be a valid URL. Please check NEXT_PUBLIC_SUPABASE_URL in your .env file. It should start with http:// or https://.`;
+    console.error(message);
+    throw new Error(message);
+  }
   if (!supabaseAnonKey) {
     const message = 'Supabase Anon Key is missing from environment variables. Please set NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env file.';
     // This error will be caught server-side
@@ -22,21 +28,27 @@ export const createSupabaseServerClient = (cookieStore: ReturnType<typeof NextCo
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      getAll() {
-        return cookieStore.getAll();
+      get(name: string) {
+        return cookieStore.get(name)?.value;
       },
-      setAll(cookiesToSet) {
+      set(name: string, value: string, options: CookieOptions) {
         try {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          );
-        } catch (e) {
-          // The `setAll` method was called from a Server Component.
+          cookieStore.set(name, value, options);
+        } catch (error) {
+          // The `set` method was called from a Server Component.
           // This can be ignored if you have middleware refreshing
-          // user sessions. In Server Actions, this might also occur
-          // if trying to set cookies after headers have been sent.
-          // For anon key usage, this is less critical.
-          console.warn(`[SupabaseServerClient] Error setting cookies in setAll: ${e}`);
+          // user sessions.
+          // console.warn(`[SupabaseServerClient] Error in 'set' cookie: ${error}`);
+        }
+      },
+      remove(name: string, options: CookieOptions) {
+        try {
+          cookieStore.set(name, '', options);
+        } catch (error) {
+          // The `delete` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
+          // console.warn(`[SupabaseServerClient] Error in 'remove' cookie: ${error}`);
         }
       },
     },

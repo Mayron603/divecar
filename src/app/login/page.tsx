@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,14 +16,46 @@ import { useToast } from '@/hooks/use-toast';
 export default function LoginPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    const errorCodeParam = searchParams.get('error_code');
+    const errorDescriptionParam = searchParams.get('error_description');
+    const messageParam = searchParams.get('message'); // For custom messages
+
+    let displayError: string | null = null;
+
+    if (messageParam) {
+      displayError = messageParam;
+    } else if (errorDescriptionParam) {
+      displayError = errorDescriptionParam;
+    } else if (errorParam) {
+      displayError = `Erro: ${errorParam}${errorCodeParam ? ` (código: ${errorCodeParam})` : ''}`;
+    }
+    
+    if (displayError) {
+      // Decodificar a mensagem se ela foi codificada
+      try {
+        displayError = decodeURIComponent(displayError);
+      } catch (e) {
+        console.warn("Failed to decode error message from URL:", e);
+      }
+      setError(displayError);
+      toast({ variant: 'destructive', title: 'Erro de Autenticação', description: displayError });
+      // Limpar os parâmetros da URL para não exibir a mensagem novamente em um refresh simples
+      // router.replace('/login', { scroll: false }); // Comentado pois pode causar loop se o toast não for suficiente
+    }
+  }, [searchParams, toast, router]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null);
+    setError(null); // Limpar erros anteriores
     setIsLoading(true);
 
     try {
@@ -34,11 +66,10 @@ export default function LoginPage() {
         setError(errorMessage);
         toast({ variant: 'destructive', title: 'Erro no Login', description: errorMessage });
       } else if (result.data?.user) {
-        toast({ title: 'Login Bem-sucedido!', description: `Bem-vindo(a) de volta, ${result.data.user.email}!` });
-        router.push('/'); // Redireciona para a página inicial
-        router.refresh(); // Força a atualização da navbar e outros componentes do servidor
+        toast({ title: 'Login Bem-sucedido!', description: `Bem-vindo(a) de volta!` });
+        router.push('/'); 
+        router.refresh(); 
       } else {
-        // Caso inesperado
         const unexpectedError = 'Resposta inesperada do servidor durante o login.';
         setError(unexpectedError);
         toast({ variant: 'destructive', title: 'Erro Inesperado', description: unexpectedError });

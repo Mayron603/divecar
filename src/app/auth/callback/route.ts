@@ -1,7 +1,7 @@
 
-import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers'; // Import cookies para a Route Handler
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -12,8 +12,7 @@ export async function GET(request: NextRequest) {
   console.log('[AuthCallback] Received callback. Code:', code, 'Next:', next, 'Origin:', origin);
 
   if (code) {
-    const cookieStore = cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
+    const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (!error) {

@@ -2,11 +2,10 @@
 // src/lib/supabase/server.ts
 // This client is for use in Server Components, Server Actions, and Route Handlers
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { type cookies as NextCookiesType } from "next/headers"; // Import the type of cookies()
+import { cookies } from "next/headers"; // Import cookies diretamente
 
-// Define a function to create the server client
-// It needs the cookieStore to be passed in from Server Components/Actions
-export const createSupabaseServerClient = (cookieStore: ReturnType<typeof NextCookiesType>) => {
+// A função createSupabaseServerClient não precisa mais do parâmetro cookieStore
+export const createSupabaseServerClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -29,10 +28,14 @@ export const createSupabaseServerClient = (cookieStore: ReturnType<typeof NextCo
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       get(name: string) {
+        // Chamar cookies() diretamente aqui
+        const cookieStore = cookies();
         return cookieStore.get(name)?.value;
       },
       set(name: string, value: string, options: CookieOptions) {
         try {
+          // Chamar cookies() diretamente aqui
+          const cookieStore = cookies();
           cookieStore.set(name, value, options);
         } catch (error) {
           // The `set` method was called from a Server Component.
@@ -43,7 +46,9 @@ export const createSupabaseServerClient = (cookieStore: ReturnType<typeof NextCo
       },
       remove(name: string, options: CookieOptions) {
         try {
-          cookieStore.set(name, '', options);
+          // Chamar cookies() diretamente aqui
+          const cookieStore = cookies();
+          cookieStore.set(name, '', options); // Supabase ssr usa set com valor vazio para remover
         } catch (error) {
           // The `delete` method was called from a Server Component.
           // This can be ignored if you have middleware refreshing

@@ -2,7 +2,6 @@
 // src/lib/supabase/investigationService.ts
 'use server';
 
-import { cookies } from 'next/headers';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { Investigation, InvestigationInput } from '@/types/investigation';
 import type { Comment, CommentInput } from '@/types/comment';
@@ -77,8 +76,7 @@ export async function addInvestigation(
   const functionName = "addInvestigation";
   console.log(`[SupabaseService][${functionName}] Called with data (excluding media):`, investigationData);
   try {
-    const cookieStore = cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
+    const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
 
     const { count, error: countError } = await supabase
       .from(INVESTIGATIONS_TABLE)
@@ -136,8 +134,7 @@ export async function addInvestigation(
 
 export async function getInvestigations(): Promise<Investigation[]> {
   const functionName = "getInvestigations";
-  const cookieStore = cookies();
-  const supabase = createSupabaseServerClient(cookieStore);
+  const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
   try {
     console.log(`[SupabaseService][${functionName}] Attempting to fetch investigations.`);
     const { data, error } = await supabase
@@ -179,8 +176,7 @@ export async function updateInvestigation(id: string, updates: Partial<Omit<Inve
   console.log(`[SupabaseService][${functionName}] Raw updates payload received by server action:`, JSON.stringify(updates, null, 2));
   console.log(`[SupabaseService][${functionName}] Received mediaUrls for update:`, updates.mediaUrls);
   try {
-    const cookieStore = cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
+    const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
     
     const supabaseUpdates: Record<string, any> = {};
     if (updates.title !== undefined) supabaseUpdates.title = updates.title;
@@ -259,8 +255,7 @@ export async function deleteInvestigation(id: string, mediaUrlsToDelete?: string
   const functionName = "deleteInvestigation";
   console.log(`[SupabaseService][${functionName}] Called for id: ${id}`, mediaUrlsToDelete ? `with ${mediaUrlsToDelete.length} media URLs to delete.` : "with no media URLs to delete.");
   try {
-    const cookieStore = cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
+    const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
     if (mediaUrlsToDelete && mediaUrlsToDelete.length > 0) {
       console.log(`[SupabaseService][${functionName}] Attempting to delete ${mediaUrlsToDelete.length} media files from storage for investigation ${id}.`);
       const deletePromises = mediaUrlsToDelete.map(url => deleteFileFromSupabaseStorageUrl(url, supabase)); 
@@ -308,8 +303,7 @@ export async function OBSOLETE_uploadFileToServerAction(formData: FormData): Pro
   let supabase;
 
   try {
-    const cookieStore = cookies();
-    supabase = createSupabaseServerClient(cookieStore);
+    supabase = createSupabaseServerClient(); // Não passa mais cookieStore
     console.log(`[SupabaseStorageService][${functionName}] Supabase server client instantiated successfully.`);
   } catch(e: any) {
     console.error(`[SupabaseStorageService][${functionName}] Failed to instantiate Supabase client.`);
@@ -449,8 +443,7 @@ export async function OBSOLETE_uploadFileToServerAction(formData: FormData): Pro
 
 export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, supabaseClientParam?: ReturnType<typeof createSupabaseServerClient>): Promise<ServiceResponse> {
   const functionName = "deleteFileFromSupabaseStorageUrl";
-  const cookieStore = cookies(); 
-  const supabase = supabaseClientParam || createSupabaseServerClient(cookieStore);
+  const supabase = supabaseClientParam || createSupabaseServerClient(); // Não passa mais cookieStore
 
   console.log(`[SupabaseStorageService][${functionName}] Called for URL: ${fileUrl}. Using bucket: ${INVESTIGATION_MEDIA_BUCKET}`);
   try {
@@ -533,8 +526,7 @@ export async function addComment(commentData: CommentInput): Promise<ServiceResp
   const functionName = "addComment";
   console.log(`[SupabaseService][${functionName}] Called with data:`, commentData);
   try {
-    const cookieStore = cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
+    const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
 
     const payloadToInsert = {
       investigation_id: commentData.investigationId,
@@ -579,8 +571,7 @@ export async function getCommentsByInvestigationId(investigationId: string): Pro
   const functionName = "getCommentsByInvestigationId";
   console.log(`[SupabaseService][${functionName}] Called for investigationId: ${investigationId}`);
   try {
-    const cookieStore = cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
+    const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
 
     const { data, error } = await supabase
       .from(COMMENTS_TABLE)

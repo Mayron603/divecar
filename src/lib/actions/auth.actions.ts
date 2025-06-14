@@ -1,10 +1,10 @@
 
 'use server';
 
-import { cookies } from 'next/headers';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { AuthError, User, Session } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers'; // Ainda necessário para o redirect, mas não para o client
 
 interface UserCredentials {
   email: string;
@@ -24,10 +24,8 @@ interface AuthResponse {
 
 
 export async function signUpUser(credentials: UserCredentials): Promise<AuthResponse> {
-  const cookieStore = cookies();
-  const supabase = createSupabaseServerClient(cookieStore);
+  const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
   
-  // Construir a URL de redirecionamento dinamicamente ou certificar-se que NEXT_PUBLIC_BASE_URL está configurada no Vercel
   const callbackUrl = process.env.NEXT_PUBLIC_BASE_URL ? 
                       `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback` : 
                       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/auth/callback` : 'http://localhost:3000/auth/callback');
@@ -57,7 +55,11 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
        ) {
       errorMessage = 'Este e-mail já está registrado. Tente fazer login.';
       errorName = 'UserAlreadyExistsError';
+    } else if (error instanceof AuthError && error.message.toLowerCase().includes('rate limit exceeded')) {
+        errorMessage = 'Limite de tentativas excedido. Por favor, tente novamente mais tarde.';
+        errorName = 'RateLimitError';
     }
+
     return { error: { message: errorMessage, name: errorName, status: error.status }, data: null };
   }
 
@@ -91,8 +93,7 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
 
 
 export async function signInUser(credentials: UserCredentials): Promise<AuthResponse> {
-  const cookieStore = cookies();
-  const supabase = createSupabaseServerClient(cookieStore);
+  const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
   console.log('[AuthActions] Attempting to sign in user:', credentials.email);
   const { data, error } = await supabase.auth.signInWithPassword({
     email: credentials.email,
@@ -102,7 +103,13 @@ export async function signInUser(credentials: UserCredentials): Promise<AuthResp
   if (error) {
     if (error instanceof AuthError) {
       console.error('[AuthActions] Supabase Auth SignIn Error:', error.message, error.status);
-      return { error: { message: error.message, status: error.status }, data: null };
+      let friendlyMessage = error.message;
+      if (error.message.toLowerCase().includes('invalid login credentials')) {
+        friendlyMessage = 'Credenciais de login inválidas. Verifique seu e-mail e senha.';
+      } else if (error.message.toLowerCase().includes('email not confirmed')) {
+        friendlyMessage = 'Seu e-mail ainda não foi confirmado. Por favor, verifique sua caixa de entrada e spam pelo link de confirmação.';
+      }
+      return { error: { message: friendlyMessage, status: error.status }, data: null };
     }
     console.error('[AuthActions] Unknown error during sign in:', error);
     return { error: { message: 'Ocorreu um erro desconhecido durante o login.' }, data: null };
@@ -113,17 +120,16 @@ export async function signInUser(credentials: UserCredentials): Promise<AuthResp
 }
 
 export async function signOutUser() {
-  const cookieStore = cookies();
-  const supabase = createSupabaseServerClient(cookieStore);
+  const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
   console.log('[AuthActions] Attempting to sign out user...');
   const { error } = await supabase.auth.signOut();
 
   if (error) {
     console.error('[AuthActions] Supabase Auth SignOut Error:', error);
-    // Mesmo com erro, o redirecionamento ocorrerá e o cliente Supabase deve pegar o estado deslogado.
   } else {
     console.log('[AuthActions] User signed out successfully from Supabase backend.');
   }
-  // É importante que o redirect aconteça *depois* do signOut.
-  return redirect('/'); // Redireciona para a página inicial após o logout.
+  // Para Server Actions, é recomendado usar redirect ao invés de router.push
+  // router.refresh() será chamado no cliente pela Navbar no onAuthStateChange
+  redirect('/'); 
 }

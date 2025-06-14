@@ -4,12 +4,10 @@ import { InfoCard } from '@/components/common/info-card';
 import { Users, ScrollText, Info, Building, Video, Shirt, UserCircle2 } from 'lucide-react'; 
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardDescription } from '@/components/ui/card';
-import { cookies } from 'next/headers';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
-export default async function HomePage() { // Tornando a página um Server Component assíncrono
-  const cookieStore = cookies();
-  const supabase = createSupabaseServerClient(cookieStore);
+export default async function HomePage() { 
+  const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
   const { data: { user } } = await supabase.auth.getUser();
 
   const infoCardsData = [
@@ -132,4 +130,3 @@ export default async function HomePage() { // Tornando a página um Server Compo
     </div>
   );
 }
-

@@ -2,7 +2,6 @@
 // src/lib/supabase/suspiciousVehicleService.ts
 'use server';
 
-import { cookies } from 'next/headers';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { SuspiciousVehicle, SuspiciousVehicleInput } from '@/types/suspiciousVehicle';
 
@@ -74,8 +73,7 @@ export async function addSuspiciousVehicle(
   const functionName = "addSuspiciousVehicle";
   console.log(`[SupabaseService][${functionName}] Called with data (excluding photo):`, vehicleData);
   try {
-    const cookieStore = cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
+    const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
 
     const payloadToInsert = {
       vehicle_model: vehicleData.vehicleModel,
@@ -119,8 +117,7 @@ export async function addSuspiciousVehicle(
 
 export async function getSuspiciousVehicles(): Promise<SuspiciousVehicle[]> {
   const functionName = "getSuspiciousVehicles";
-  const cookieStore = cookies();
-  const supabase = createSupabaseServerClient(cookieStore);
+  const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
   try {
     console.log(`[SupabaseService][${functionName}] Attempting to fetch suspicious vehicles.`);
     const { data, error } = await supabase
@@ -161,8 +158,7 @@ export async function updateSuspiciousVehicle(id: string, updates: Partial<Omit<
   console.log(`[SupabaseService][${functionName}] Called for id: ${id}`);
   console.log(`[SupabaseService][${functionName}] Raw updates payload received:`, JSON.stringify(updates, null, 2));
   try {
-    const cookieStore = cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
+    const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
     
     const supabaseUpdates: Record<string, any> = {};
     if (updates.vehicleModel !== undefined) supabaseUpdates.vehicle_model = updates.vehicleModel;
@@ -241,8 +237,7 @@ export async function updateSuspiciousVehicle(id: string, updates: Partial<Omit<
 
 export async function deleteFileFromSupabaseStorageUrl(fileUrl: string, supabaseClientParam?: ReturnType<typeof createSupabaseServerClient>): Promise<ServiceResponse> {
   const functionName = "deleteFileFromSupabaseStorageUrl (SuspiciousVehicles)";
-  const cookieStore = cookies(); 
-  const supabase = supabaseClientParam || createSupabaseServerClient(cookieStore);
+  const supabase = supabaseClientParam || createSupabaseServerClient(); // Não passa mais cookieStore
 
   console.log(`[SupabaseStorageService][${functionName}] Called for URL: ${fileUrl}. Using bucket: ${SUSPICIOUS_VEHICLE_PHOTOS_BUCKET}`);
   try {
@@ -325,8 +320,7 @@ export async function deleteSuspiciousVehicle(id: string, photoUrlToDelete?: str
   const functionName = "deleteSuspiciousVehicle";
   console.log(`[SupabaseService][${functionName}] Called for id: ${id}`, photoUrlToDelete ? `with photo URL ${photoUrlToDelete} to delete.` : "with no photo URL to delete.");
   try {
-    const cookieStore = cookies();
-    const supabase = createSupabaseServerClient(cookieStore);
+    const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
     if (photoUrlToDelete) {
       console.log(`[SupabaseService][${functionName}] Attempting to delete photo file from storage for vehicle ${id}. URL: ${photoUrlToDelete}`);
       const deletePhotoResponse = await deleteFileFromSupabaseStorageUrl(photoUrlToDelete, supabase);

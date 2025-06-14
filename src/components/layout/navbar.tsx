@@ -53,8 +53,8 @@ export function Navbar() {
           console.error('[Navbar] Error getting session:', sessionError.message);
         }
         console.log('[Navbar] useEffect/getSession: Session fetched. User in session:', session?.user?.email ?? 'No user in session');
-        console.log('[Navbar] Full user object from getSession:', JSON.stringify(session?.user, null, 2));
-        console.log('[Navbar] User metadata from getSession:', JSON.stringify(session?.user?.user_metadata, null, 2));
+        console.log('[Navbar] Full user object from getSession (initial):', JSON.stringify(session?.user, null, 2));
+        console.log('[Navbar] User metadata from getSession (initial):', JSON.stringify(session?.user?.user_metadata, null, 2));
         setUser(session?.user ?? null);
       } catch (e) {
         console.error('[Navbar] Exception during getSession:', e);
@@ -70,7 +70,8 @@ export function Navbar() {
       console.log('[Navbar] onAuthStateChange event:', event, 'User in session:', session?.user?.email ?? 'No user');
       console.log('[Navbar] Full user object from onAuthStateChange:', JSON.stringify(session?.user, null, 2));
       console.log('[Navbar] User metadata from onAuthStateChange:', JSON.stringify(session?.user?.user_metadata, null, 2));
-      setUser(session?.user ?? null);
+      
+      setUser(session?.user ?? null); // Atualiza o estado do usuário
       setIsLoading(false); 
 
       if (event === 'SIGNED_IN' && (pathname === '/login' || pathname === '/register')) {
@@ -79,9 +80,10 @@ export function Navbar() {
         router.refresh(); 
       }
       if (event === 'SIGNED_OUT') {
-        console.log('[Navbar] SIGNED_OUT event detected. Refreshing router.');
-        router.push('/'); 
-        router.refresh();
+        console.log('[Navbar] SIGNED_OUT event detected. Refreshing router and redirecting to /.');
+        // O setUser(null) já acontece devido a session ser null no evento SIGNED_OUT
+        router.push('/'); // Garante redirecionamento para a home
+        router.refresh(); // Crucial para forçar a atualização da UI
       }
     });
 

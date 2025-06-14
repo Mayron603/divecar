@@ -551,14 +551,14 @@ export default function SuspiciousVehiclesPage() {
               </div>
 
               <div>
-                <Label htmlFor="vehiclePhoto">Foto do Veículo (Opcional)</Label>
+                <Label htmlFor="vehiclePhoto">Foto do Veículo</Label>
                 <Input
                   id="vehiclePhoto"
                   type="file"
                   onChange={handleFileChange}
                   ref={photoInputRef}
                   disabled={isSubmitting || isUploading}
-                  className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  className="file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                   accept="image/*"
                 />
                 {isUploading && (

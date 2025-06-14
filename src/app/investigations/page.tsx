@@ -667,7 +667,7 @@ export default function InvestigationsPage() {
               </div>
 
               <div>
-                <Label htmlFor="mediaFiles">Adicionar Mídias (Imagens/Vídeos - Opcional)</Label>
+                <Label htmlFor="mediaFiles">Adicionar Mídias (Imagens/Vídeos)</Label>
                 <Input
                   id="mediaFiles"
                   type="file"
@@ -675,7 +675,7 @@ export default function InvestigationsPage() {
                   onChange={handleFileChange}
                   ref={fileInputRef}
                   disabled={isSubmitting || isUploading}
-                  className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  className="file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                   accept="image/*,video/*"
                 />
                 {isUploading && (

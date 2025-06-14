@@ -8,14 +8,12 @@ import {
   FileText,  // Escrivão
   Search,    // Investigador
   User,      // Agente Policial
-  Activity,  // Médico Legista (sugestão)
-  FlaskConical, // Perito Criminal (sugestão)
-  ClipboardCheck // Médico Legista Alternativo
+  ClipboardCheck, // Médico Legista 
+  FlaskConical // Perito Criminal
 } from 'lucide-react';
 
 interface Rank {
   name: string;
-  exampleNames?: string[]; // Alterado para array e opcional
   description: string;
   icon: LucideIcon;
 }
@@ -23,14 +21,13 @@ interface Rank {
 const hierarchyData: Rank[] = [
   {
     name: "Delegado de Polícia",
-    exampleNames: ["Junior Martins", "Gustavo Silva"],
     description: "Preside inquéritos policiais, coordena equipes de investigação, analisa provas, representa pela decretação de medidas cautelares e lidera a unidade ou equipes especializadas.",
     icon: Briefcase,
   },
   {
     name: "Médico Legista",
     description: "Realiza exames de corpo de delito em vivos e mortos, analisa lesões corporais, determina a causa mortis e elabora laudos técnicos essenciais para a investigação criminal.",
-    icon: ClipboardCheck, // Usando ClipboardCheck para laudos/exames
+    icon: ClipboardCheck, 
   },
   {
     name: "Perito Criminal",
@@ -39,7 +36,6 @@ const hierarchyData: Rank[] = [
   },
   {
     name: "Investigador de Polícia",
-    exampleNames: ["Tinga Tava", "PistolaNadisney", "David Silva", "Albert Patrick"],
     description: "Realiza diligências investigativas, coleta de provas, oitivas, campanas, infiltrações e outras atividades de campo e inteligência para a elucidação de crimes e identificação de autores.",
     icon: Search,
   },
@@ -62,14 +58,6 @@ const RankCard = ({ rank }: { rank: Rank }) => (
         <rank.icon className="h-8 w-8 text-accent" />
         <CardTitle className="text-2xl text-primary">{rank.name}</CardTitle>
       </div>
-      {rank.exampleNames && rank.exampleNames.length > 0 && (
-        <div className="mt-2">
-          <p className="text-sm font-semibold text-muted-foreground">Exemplos:</p>
-          <ul className="list-disc list-inside ml-4 text-sm text-muted-foreground">
-            {rank.exampleNames.map(name => <li key={name}>{name}</li>)}
-          </ul>
-        </div>
-      )}
     </CardHeader>
     <CardContent className="flex-grow">
       <CardDescription className="text-md mt-1 text-foreground leading-relaxed">{rank.description}</CardDescription>

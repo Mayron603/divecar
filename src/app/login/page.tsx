@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, type FormEvent, useEffect } from 'react';
+import React, { useState, type FormEvent, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { LogIn, Loader2, AlertCircle } from 'lucide-react';
 import { signInUser } from '@/lib/actions/auth.actions';
 import { useToast } from '@/hooks/use-toast';
 
-export default function LoginPage() {
+function LoginContent() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -40,22 +40,24 @@ export default function LoginPage() {
     }
     
     if (displayError) {
-      // Decodificar a mensagem se ela foi codificada
       try {
         displayError = decodeURIComponent(displayError);
       } catch (e) {
         console.warn("Failed to decode error message from URL:", e);
       }
       setError(displayError);
-      toast({ variant: 'destructive', title: 'Erro de Autenticação', description: displayError });
-      // Limpar os parâmetros da URL para não exibir a mensagem novamente em um refresh simples
-      // router.replace('/login', { scroll: false }); // Comentado pois pode causar loop se o toast não for suficiente
+      // Evitar chamar toast diretamente no useEffect em SSR/build, melhor condicionar ao client-side.
+      // O toast já será chamado no handleSubmit ou em interações do usuário.
+      // Se precisar de um toast inicial com base na URL, pode ser necessário um useEffect adicional 
+      // para garantir que só rode no cliente após a montagem.
+      // Por ora, o erro será exibido no componente.
+      // toast({ variant: 'destructive', title: 'Erro de Autenticação', description: displayError });
     }
-  }, [searchParams, toast, router]);
+  }, [searchParams, toast]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null); // Limpar erros anteriores
+    setError(null); 
     setIsLoading(true);
 
     try {
@@ -84,70 +86,80 @@ export default function LoginPage() {
   };
 
   return (
+    <Card className="w-full max-w-md shadow-xl">
+      <CardHeader>
+        <CardTitle>Login</CardTitle>
+        <CardDescription>Preencha os campos abaixo para entrar.</CardDescription>
+      </CardHeader>
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="email">E-mail</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={isLoading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={isLoading}
+            />
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-col items-stretch gap-4">
+          {error && (
+            <div className="flex items-center p-3 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md">
+              <AlertCircle className="mr-2 h-5 w-5" />
+              <p>{error}</p>
+            </div>
+          )}
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Entrando...
+              </>
+            ) : (
+              <>
+                <LogIn className="mr-2 h-5 w-5" />
+                Entrar
+              </>
+            )}
+          </Button>
+          <Button variant="link" asChild className="text-sm">
+              <Link href="/register">Não tem uma conta? Registre-se</Link>
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
+  );
+}
+
+
+export default function LoginPage() {
+  // O PageHeader pode ficar fora do Suspense se não depender de searchParams
+  return (
     <div className="space-y-8 flex flex-col items-center">
       <PageHeader
         title="Acessar Conta"
         description="Entre com suas credenciais para acessar a plataforma."
         icon={LogIn}
       />
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader>
-          <CardTitle>Login</CardTitle>
-          <CardDescription>Preencha os campos abaixo para entrar.</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={isLoading}
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col items-stretch gap-4">
-            {error && (
-              <div className="flex items-center p-3 text-sm text-destructive bg-destructive/10 border border-destructive/30 rounded-md">
-                <AlertCircle className="mr-2 h-5 w-5" />
-                <p>{error}</p>
-              </div>
-            )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Entrando...
-                </>
-              ) : (
-                <>
-                  <LogIn className="mr-2 h-5 w-5" />
-                  Entrar
-                </>
-              )}
-            </Button>
-            <Button variant="link" asChild className="text-sm">
-                <Link href="/register">Não tem uma conta? Registre-se</Link>
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+      <Suspense fallback={<div className="flex justify-center items-center py-12"><Loader2 className="h-12 w-12 animate-spin text-primary" /><p className="ml-4 text-lg text-muted-foreground">Carregando...</p></div>}>
+        <LoginContent />
+      </Suspense>
     </div>
   );
 }

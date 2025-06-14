@@ -26,25 +26,24 @@ interface AuthResponse {
 export async function signUpUser(credentials: UserCredentials): Promise<AuthResponse> {
   const cookieStore = cookies();
   const supabase = createSupabaseServerClient(cookieStore);
-  const emailRedirectTo = process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback` : undefined;
+  
+  // Construir a URL de redirecionamento dinamicamente ou certificar-se que NEXT_PUBLIC_BASE_URL está configurada no Vercel
+  const callbackUrl = process.env.NEXT_PUBLIC_BASE_URL ? 
+                      `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback` : 
+                      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/auth/callback` : 'http://localhost:3000/auth/callback');
 
-  if (!emailRedirectTo) {
-    console.error("NEXT_PUBLIC_BASE_URL is not set. Email redirection for signup confirmation might not work as expected.");
-    // Você pode optar por não prosseguir ou prosseguir com um aviso.
-    // Por enquanto, vamos prosseguir mas o link de confirmação pode não levar ao lugar certo.
-  }
+  console.log('[AuthActions] signUpUser: callbackUrl for emailRedirectTo:', callbackUrl);
 
   const { data, error } = await supabase.auth.signUp({
     email: credentials.email,
     password: credentials.password,
     options: {
-      emailRedirectTo,
+      emailRedirectTo: callbackUrl,
     },
   });
 
   if (error) {
-    console.error('Supabase Auth SignUp Error:', error.message, 'Status:', error.status, 'Name:', error.name);
-    // Verifica se o erro é devido a um usuário já existente
+    console.error('[AuthActions] Supabase Auth SignUp Error:', error.message, 'Status:', error.status, 'Name:', error.name);
     const genericErrorMessage = 'Ocorreu um erro desconhecido durante o registro.';
     let errorMessage = error.message || genericErrorMessage;
     let errorName = error.name;
@@ -52,8 +51,8 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
     if (error instanceof AuthError &&
         (error.message.toLowerCase().includes('user already registered') ||
          error.message.toLowerCase().includes('email address already registered by another user') ||
-         (error.status === 400 && error.message.toLowerCase().includes('user already exists')) || // Outra variação comum
-         error.status === 422 // Unprocessable Entity, frequentemente usado para conflitos
+         (error.status === 400 && error.message.toLowerCase().includes('user already exists')) || 
+         (error.status === 422 && error.message.toLowerCase().includes('already registered')) 
         )
        ) {
       errorMessage = 'Este e-mail já está registrado. Tente fazer login.';
@@ -62,10 +61,8 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
     return { error: { message: errorMessage, name: errorName, status: error.status }, data: null };
   }
 
-  // Se data.user existe e data.session é null, é um novo registro pendente de confirmação
-  // ou um usuário existente não confirmado ao qual o e-mail foi reenviado.
   if (data.user && data.session === null) {
-    console.log('Sign up processed, email confirmation likely required. User ID:', data.user.id);
+    console.log('[AuthActions] signUpUser successful (confirmation email sent). User ID:', data.user.id);
     return {
       error: null,
       data: {
@@ -76,9 +73,8 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
     };
   }
 
-  // Caso a auto-confirmação esteja habilitada e um usuário seja criado e logado imediatamente.
   if (data.user && data.session) {
-      console.log('Sign up successful and session created (auto-confirmation likely enabled). User ID:', data.user.id);
+      console.log('[AuthActions] signUpUser successful and session created (auto-confirmation likely enabled). User ID:', data.user.id);
       return {
         error: null,
         data: {
@@ -89,9 +85,7 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
       };
   }
 
-  // Fallback para um estado inesperado, se não houver erro nem data.user.
-  // Isso também cobre o caso onde data.user é null, o que não deveria acontecer com um signUp bem-sucedido sem erro.
-  console.warn('Supabase signUp returned unexpected data/error state:', { data, error });
+  console.warn('[AuthActions] Supabase signUp returned unexpected data/error state:', { data, error });
   return { error: { message: 'Resposta inesperada do servidor durante o registro.' }, data: null };
 }
 
@@ -99,7 +93,7 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
 export async function signInUser(credentials: UserCredentials): Promise<AuthResponse> {
   const cookieStore = cookies();
   const supabase = createSupabaseServerClient(cookieStore);
-
+  console.log('[AuthActions] Attempting to sign in user:', credentials.email);
   const { data, error } = await supabase.auth.signInWithPassword({
     email: credentials.email,
     password: credentials.password,
@@ -107,25 +101,29 @@ export async function signInUser(credentials: UserCredentials): Promise<AuthResp
 
   if (error) {
     if (error instanceof AuthError) {
-      console.error('Supabase Auth SignIn Error:', error.message, error.status);
+      console.error('[AuthActions] Supabase Auth SignIn Error:', error.message, error.status);
       return { error: { message: error.message, status: error.status }, data: null };
     }
-    console.error('Unknown error during sign in:', error);
+    console.error('[AuthActions] Unknown error during sign in:', error);
     return { error: { message: 'Ocorreu um erro desconhecido durante o login.' }, data: null };
   }
 
-  console.log('Sign in successful. User:', data.user?.id, 'Session:', data.session !== null);
+  console.log('[AuthActions] Sign in successful. User:', data.user?.id, 'Session:', data.session !== null);
   return { error: null, data: { user: data.user, session: data.session } };
 }
 
 export async function signOutUser() {
   const cookieStore = cookies();
   const supabase = createSupabaseServerClient(cookieStore);
+  console.log('[AuthActions] Attempting to sign out user...');
   const { error } = await supabase.auth.signOut();
 
   if (error) {
-    console.error('Supabase Auth SignOut Error:', error);
+    console.error('[AuthActions] Supabase Auth SignOut Error:', error);
+    // Mesmo com erro, o redirecionamento ocorrerá e o cliente Supabase deve pegar o estado deslogado.
+  } else {
+    console.log('[AuthActions] User signed out successfully from Supabase backend.');
   }
-  return redirect('/');
+  // É importante que o redirect aconteça *depois* do signOut.
+  return redirect('/'); // Redireciona para a página inicial após o logout.
 }
-

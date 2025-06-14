@@ -33,16 +33,21 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
   console.log(`[AuthActions][${functionName}] Iniciando registro para:`, credentials.email);
   const supabase = createSupabaseServerClient();
 
+  // Logging para entender as variáveis de ambiente
   const vercelUrl = process.env.VERCEL_URL;
   const explicitBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  console.log(`[AuthActions][${functionName}] VERCEL_URL: ${vercelUrl}, NEXT_PUBLIC_BASE_URL: ${explicitBaseUrl}`);
   
   let siteUrl;
   if (explicitBaseUrl) {
     siteUrl = explicitBaseUrl;
+    console.log(`[AuthActions][${functionName}] Usando explicitBaseUrl: ${siteUrl}`);
   } else if (vercelUrl) {
     siteUrl = `https://${vercelUrl}`;
+    console.log(`[AuthActions][${functionName}] Usando vercelUrl: ${siteUrl}`);
   } else {
-    siteUrl = 'http://localhost:3000'; 
+    siteUrl = 'http://localhost:9002'; // Ajustado para porta 9002
+    console.log(`[AuthActions][${functionName}] Usando fallback localhost: ${siteUrl}`);
   }
   const callbackUrl = `${siteUrl}/auth/callback`;
   console.log(`[AuthActions][${functionName}] callbackUrl para emailRedirectTo: ${callbackUrl}`);
@@ -103,13 +108,14 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
     // Verifica se alguma identidade pré-existente para este e-mail já estava confirmada
     const isPreviouslyConfirmed = user.identities.some(identity => {
       // Log específico para cada identidade sendo verificada
-      // console.log(`[AuthActions][${functionName}] Verificando identidade pré-existente: provider=${identity.provider}, identity_data.email_verified_at=${(identity.identity_data as any)?.email_verified_at}, identity.identity_data.verified=${(identity.identity_data as any)?.verified}`);
+      console.log(`[AuthActions][${functionName}] Verificando identidade pré-existente: provider=${identity.provider}, identity_data.email_verified_at=${(identity.identity_data as any)?.email_verified_at}, identity.identity_data.verified=${(identity.identity_data as any)?.verified}`);
       return identity.provider === 'email' &&
              identity.identity_data &&
              ( (identity.identity_data as any).email_verified_at || (identity.identity_data as any).verified === true );
     });
 
     if (isPreviouslyConfirmed) {
+        // Este é o cenário onde o e-mail já existe e uma de suas identidades anteriores FOI confirmada.
         console.log(`[AuthActions][${functionName}] SCENARIO 1 (NO EXPLICIT ERROR) - E-mail já registrado e CONFIRMADO (baseado em user.identities pré-existentes e verificadas). Email:`, user.email);
         return {
             error: {
@@ -149,7 +155,8 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
 
 export async function signInUser(credentials: UserCredentials): Promise<AuthResponse> {
   const supabase = createSupabaseServerClient();
-  console.log('[AuthActions] signInUser: Tentando login para:', credentials.email);
+  const functionName = "signInUser";
+  console.log(`[AuthActions][${functionName}] Tentando login para:`, credentials.email);
 
   const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
     email: credentials.email,
@@ -157,8 +164,8 @@ export async function signInUser(credentials: UserCredentials): Promise<AuthResp
   });
 
   if (supabaseError) {
-    console.error('[AuthActions] signInUser: Supabase Auth SignIn retornou um ERRO.');
-    console.error('[AuthActions] signInUser: Objeto de erro completo:', JSON.stringify(supabaseError, Object.getOwnPropertyNames(supabaseError), 2));
+    console.error(`[AuthActions][${functionName}] Supabase Auth SignIn retornou um ERRO.`);
+    console.error(`[AuthActions][${functionName}] Objeto de erro completo:`, JSON.stringify(supabaseError, Object.getOwnPropertyNames(supabaseError), 2));
     
     let friendlyMessage = 'Falha no login. Verifique suas credenciais ou tente novamente mais tarde.';
     let errorName: string | undefined = supabaseError.name;
@@ -168,28 +175,28 @@ export async function signInUser(credentials: UserCredentials): Promise<AuthResp
 
     if (lowerMessage.includes('invalid login credentials')) {
         friendlyMessage = 'Credenciais de login inválidas. Verifique seu e-mail e senha.';
-        console.log(`[AuthActions] signInUser: Detectado erro de credenciais inválidas.`);
+        console.log(`[AuthActions][${functionName}] Detectado erro de credenciais inválidas.`);
     } else if (lowerMessage.includes('email not confirmed')) {
         friendlyMessage = 'Seu e-mail ainda não foi confirmado. Por favor, verifique sua caixa de entrada e spam pelo link de confirmação.';
         errorName = 'EmailNotConfirmedError'; 
-        console.log(`[AuthActions] signInUser: Detectado erro de e-mail não confirmado.`);
+        console.log(`[AuthActions][${functionName}] Detectado erro de e-mail não confirmado.`);
     } else if (lowerMessage.includes('rate limit exceeded')) {
         friendlyMessage = 'Limite de tentativas excedido. Por favor, tente novamente mais tarde.';
         errorName = 'RateLimitError';
-        console.log(`[AuthActions] signInUser: Detectado erro de limite de taxa.`);
+        console.log(`[AuthActions][${functionName}] Detectado erro de limite de taxa.`);
     } else {
-      console.log(`[AuthActions] signInUser: Erro genérico do Supabase: ${friendlyMessage}, Nome: ${errorName}, Status: ${errorStatus}`);
+      console.log(`[AuthActions][${functionName}] Erro genérico do Supabase: ${friendlyMessage}, Nome: ${errorName}, Status: ${errorStatus}`);
     }
     return { error: { message: friendlyMessage, name: errorName, status: errorStatus as number | undefined }, data: null };
   }
 
   if (data && data.user && data.session) {
-    console.log('[AuthActions] signInUser: Login bem-sucedido. User ID:', data.user?.id, 'Sessão existente:', data.session !== null);
+    console.log(`[AuthActions][${functionName}] Login bem-sucedido. User ID:`, data.user?.id, 'Sessão existente:', data.session !== null);
     return { error: null, data: { user: data.user, session: data.session } };
   }
 
   if (data && data.user && !data.session) {
-    console.warn('[AuthActions] signInUser: Usuário retornado mas SEM SESSÃO. Email:', data.user.email, 'Email Confirmado:', data.user.email_confirmed_at);
+    console.warn(`[AuthActions][${functionName}] Usuário retornado mas SEM SESSÃO. Email:`, data.user.email, 'Email Confirmado:', data.user.email_confirmed_at);
     if (!data.user.email_confirmed_at) { 
       return { 
         error: { 
@@ -205,7 +212,7 @@ export async function signInUser(credentials: UserCredentials): Promise<AuthResp
     };
   }
 
-  console.warn('[AuthActions] signInUser: Supabase signInWithPassword retornou estado inesperado (sem erro, mas sem user/session válidos). Data:', JSON.stringify(data));
+  console.warn(`[AuthActions][${functionName}] Supabase signInWithPassword retornou estado inesperado (sem erro, mas sem user/session válidos). Data:`, JSON.stringify(data));
   return { error: { message: 'Resposta inesperada do servidor durante o login. Por favor, tente novamente.' }, data: null };
 }
 
@@ -221,11 +228,11 @@ export async function signInWithGoogle() {
   } else if (vercelUrl) {
     siteUrl = `https://${vercelUrl}`;
   } else {
-    siteUrl = 'http://localhost:3000'; 
+    siteUrl = 'http://localhost:9002'; // Ajustado para porta 9002
   }
   const redirectURL = `${siteUrl}/auth/callback`;
 
-  console.log('[AuthActions] signInWithGoogle: Iniciando login com Google. Redirecionando para:', redirectURL);
+  console.log('[AuthActions] signInWithGoogle: Iniciando login com Google. Redirecionando para (options.redirectTo):', redirectURL);
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -238,18 +245,15 @@ export async function signInWithGoogle() {
 
   if (error) {
     console.error('[AuthActions] signInWithGoogle: Erro ao iniciar OAuth com Google:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    // Não podemos retornar o erro aqui diretamente para o cliente, pois o redirecionamento acontece.
-    // O erro, se ocorrer, geralmente será mostrado na página do provedor OAuth ou na página de callback.
-    // Poderíamos redirecionar para uma página de erro aqui, mas o redirect() do Next.js é o mais comum.
-    return redirect(`/login?error=oauth_error&error_description=${encodeURIComponent(error.message)}`);
+    return redirect(`/login?error=oauth_init_failed&error_description=${encodeURIComponent(error.message)}`);
   }
 
   if (data.url) {
-    console.log('[AuthActions] signInWithGoogle: URL de autorização do Google recebida. Redirecionando para:', data.url);
-    redirect(data.url); // Redireciona o usuário para a página de login do Google
+    console.log('[AuthActions] signInWithGoogle: URL de autorização do Google recebida. Redirecionando para (data.url):', data.url);
+    redirect(data.url); 
   } else {
     console.error('[AuthActions] signInWithGoogle: Nenhuma URL de autorização retornada pelo Supabase.');
-    return redirect('/login?error=oauth_error&error_description=Falha ao obter URL de autorização do Google.');
+    return redirect('/login?error=oauth_url_missing&error_description=Falha ao obter URL de autorização do Google.');
   }
 }
 
@@ -266,8 +270,4 @@ export async function signOutUser() {
   }
   redirect('/');
 }
-    
-
-    
-
     

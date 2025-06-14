@@ -11,6 +11,15 @@ import type { User } from '@supabase/supabase-js';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const baseNavItems = [
   { href: '/', label: 'Início', icon: <Home className="h-5 w-5" /> },
@@ -67,6 +76,7 @@ export function Navbar() {
       }
       if (event === 'SIGNED_OUT') {
         console.log('[Navbar] SIGNED_OUT event detected. Refreshing router.');
+        router.push('/'); // Redirect to home on sign out for better UX
         router.refresh();
       }
     });
@@ -76,6 +86,67 @@ export function Navbar() {
       authListener?.subscription.unsubscribe();
     };
   }, [supabase, router, pathname]);
+
+  const avatarUrl = user?.user_metadata?.avatar_url;
+  const userEmail = user?.email;
+  const userNameOrInitial = userEmail ? (user?.user_metadata?.full_name || userEmail.charAt(0).toUpperCase()) : "U";
+
+  const UserProfileDisplay = () => {
+    if (isLoading) {
+      return <div className="h-8 w-32 bg-primary/50 animate-pulse rounded-md"></div>;
+    }
+    if (!user) {
+      return (
+        <>
+          {unauthenticatedNavItems.map((item) => (
+            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 px-2 lg:px-3">
+              <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
+                {item.icon}
+                {item.label}
+              </Link>
+            </Button>
+          ))}
+        </>
+      );
+    }
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-primary/80">
+            <Avatar className="h-9 w-9 border-2 border-accent">
+              <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
+              <AvatarFallback className="bg-primary text-accent text-lg">
+                {avatarUrl ? null : <UserCircle2 className="h-6 w-6" />}
+              </AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">
+                {user?.user_metadata?.full_name || 'Usuário'}
+              </p>
+              <p className="text-xs leading-none text-muted-foreground">
+                {userEmail}
+              </p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <form action={signOutUser} className="w-full">
+            <DropdownMenuItem asChild>
+               <Button type="submit" variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sair
+              </Button>
+            </DropdownMenuItem>
+          </form>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
 
   return (
     <header className="bg-primary text-primary-foreground shadow-md sticky top-0 z-50">
@@ -95,31 +166,7 @@ export function Navbar() {
               </Link>
             </Button>
           ))}
-
-          {isLoading ? (
-            <div className="h-8 w-32 bg-primary/50 animate-pulse rounded-md"></div>
-          ) : user ? (
-            <>
-              <span className="text-xs lg:text-sm px-2 lg:px-3 flex items-center" title={user.email ?? 'Usuário Logado'}>
-                <UserCircle2 className="h-5 w-5 mr-1.5 text-accent" />
-                <span className="truncate max-w-[100px] lg:max-w-[150px]">{user.email}</span>
-              </span>
-              <form action={signOutUser}>
-                <Button type="submit" variant="ghost" className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 px-2 lg:px-3 text-xs lg:text-sm">
-                  <LogOut className="h-5 w-5 mr-1 sm:mr-2" /> Sair
-                </Button>
-              </form>
-            </>
-          ) : (
-            unauthenticatedNavItems.map((item) => (
-              <Button key={item.label} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 px-2 lg:px-3">
-                <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                  {item.icon}
-                  {item.label}
-                </Link>
-              </Button>
-            ))
-          )}
+          <UserProfileDisplay />
         </nav>
 
         {/* Mobile Navbar Trigger */}
@@ -141,21 +188,46 @@ export function Navbar() {
                   </Button>
                 ))}
 
-                {baseNavItems.length > 0 && <hr className="border-primary-foreground/20 my-2" />}
+                <hr className="border-primary-foreground/20 my-2" />
 
                 {isLoading ? (
                    <div className="h-12 w-full bg-primary/50 animate-pulse rounded-md mt-2"></div>
                 ) : user ? (
                   <>
-                    <div className="px-3 py-2.5 text-lg text-left truncate flex items-center" title={user.email ?? 'Usuário Logado'}>
-                       <UserCircle2 className="h-6 w-6 mr-2.5 text-accent" />
-                       {user.email}
-                    </div>
-                    <form action={signOutUser}>
-                      <Button type="submit" variant="ghost" className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 justify-start w-full flex items-center gap-3 py-2.5 text-lg">
-                        <LogOut className="h-5 w-5" /> Sair
-                      </Button>
-                    </form>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="justify-start w-full text-left flex items-center gap-3 py-2.5 text-lg h-auto px-3 hover:bg-primary/80">
+                           <Avatar className="h-8 w-8 border-2 border-accent">
+                            <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
+                            <AvatarFallback className="bg-primary text-accent">
+                               {avatarUrl ? null : <UserCircle2 className="h-5 w-5" />}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="truncate">{user?.user_metadata?.full_name || userEmail || 'Perfil'}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="w-56 bg-primary border-primary-foreground/20 text-primary-foreground" align="end" sideOffset={10}>
+                        <DropdownMenuLabel className="font-normal">
+                          <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">
+                              {user?.user_metadata?.full_name || 'Usuário'}
+                            </p>
+                            <p className="text-xs leading-none text-primary-foreground/80">
+                              {userEmail}
+                            </p>
+                          </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator className="bg-primary-foreground/20" />
+                        <form action={signOutUser} className="w-full">
+                          <DropdownMenuItem asChild>
+                             <Button type="submit" variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2 text-primary-foreground hover:bg-primary/90 hover:text-accent">
+                              <LogOut className="mr-2 h-4 w-4" />
+                              Sair
+                            </Button>
+                          </DropdownMenuItem>
+                        </form>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </>
                 ) : (
                   unauthenticatedNavItems.map((item) => (
@@ -175,3 +247,5 @@ export function Navbar() {
     </header>
   );
 }
+
+    

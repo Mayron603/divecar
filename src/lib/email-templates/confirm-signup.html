@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirme seu E-mail - DIVECAR Osasco</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #E0E0E0; /* Light Gray Background */
+            font-family: 'Inter', Arial, sans-serif;
+            line-height: 1.6;
+            color: #1A1A1A; /* Dark Gray/Almost Black for text */
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff; /* White card background */
+            border: 1px solid #D9D9D9; /* Gray border */
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #003366; /* Primary color (Deep Blue) */
+            color: #F8F9FA; /* White text on dark blue */
+            padding: 25px 20px;
+            text-align: center;
+            border-bottom: 4px solid #FFD700; /* Accent color (Gold) */
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 30px;
+            text-align: left;
+        }
+        .content p {
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .button {
+            background-color: #FFD700; /* Accent color (Gold) */
+            color: #003366; /* Primary color for text on button */
+            padding: 14px 28px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 17px;
+            display: inline-block;
+            border: none;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .button:hover {
+            background-color: #e6c300; /* Darker Gold on hover */
+            transform: translateY(-2px);
+        }
+        .link-code {
+            word-break: break-all;
+            font-size: 13px;
+            background-color: #f0f0f0;
+            padding: 8px;
+            border-radius: 4px;
+            color: #003366;
+        }
+        .link-code a {
+            color: #003366;
+            text-decoration: underline;
+        }
+        .footer {
+            background-color: #f0f0f0; /* Slightly lighter than body background */
+            color: #333333;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            border-top: 1px solid #D9D9D9;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        .app-name {
+            font-weight: bold;
+            color: #003366; /* Primary color */
+        }
+        /* Responsive */
+        @media screen and (max-width: 600px) {
+            .content {
+                padding: 20px;
+            }
+            .header h1 {
+                font-size: 22px;
+            }
+            .content p {
+                font-size: 15px;
+            }
+            .button {
+                padding: 12px 20px;
+                font-size: 16px;
+                width: 90%;
+                box-sizing: border-box;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Confirmação de Cadastro</h1>
+        </div>
+        <div class="content">
+            <p>Olá,</p>
+            <p>Obrigado por se registrar na plataforma <span class="app-name">DIVECAR Osasco</span>!</p>
+            <p>Para concluir seu cadastro e ativar sua conta, por favor, clique no botão abaixo:</p>
+            <div class="button-container">
+                <a href="{{ .ConfirmationURL }}" class="button" style="background-color: #FFD700; color: #003366; padding: 14px 28px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 17px; display: inline-block; border: none;">Confirmar Meu E-mail</a>
+            </div>
+            <p>Se o botão acima não funcionar, você pode copiar e colar o seguinte link no seu navegador:</p>
+            <p class="link-code"><a href="{{ .ConfirmationURL }}" style="color: #003366; text-decoration: underline;">{{ .ConfirmationURL }}</a></p>
+            <p>Este link de confirmação é válido por um tempo limitado. Se expirar, você poderá solicitar um novo ao tentar fazer login.</p>
+            <p>Se você não solicitou este cadastro, por favor, ignore este e-mail. Nenhuma ação adicional é necessária.</p>
+            <p>Atenciosamente,<br>Equipe <span class="app-name">DIVECAR Osasco</span></p>
+        </div>
+        <div class="footer">
+            <p>&copy; DIVECAR Osasco - Polícia Civil. Todos os direitos reservados.</p>
+            <p>Divisão de Investigações sobre Furtos e Roubos de Veículos e Cargas - Osasco</p>
+        </div>
+    </div>
+</body>
+</html>

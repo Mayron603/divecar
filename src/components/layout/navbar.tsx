@@ -34,23 +34,31 @@ export function Navbar() {
   const supabase = createSupabaseBrowserClient();
 
   useEffect(() => {
+    console.log('[Navbar] useEffect: Initializing session check and auth listener.');
     const getSession = async () => {
       setIsLoading(true);
-      console.log('[Navbar] useEffect: Attempting to get session.');
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error('[Navbar] Error getting session:', sessionError.message);
+      console.log('[Navbar] useEffect/getSession: Attempting to get session.');
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error('[Navbar] Error getting session:', sessionError.message);
+        }
+        console.log('[Navbar] useEffect/getSession: Session fetched. User:', session?.user?.email ?? 'No user in session');
+        setUser(session?.user ?? null);
+      } catch (e) {
+        console.error('[Navbar] Exception during getSession:', e);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+        console.log('[Navbar] useEffect/getSession: Loading state set to false.');
       }
-      console.log('[Navbar] useEffect: Session fetched. User:', session?.user?.email ?? 'No user in session');
-      setUser(session?.user ?? null);
-      setIsLoading(false);
     };
     getSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[Navbar] onAuthStateChange event:', event, 'User in session:', session?.user?.email ?? 'No user');
       setUser(session?.user ?? null);
-      setIsLoading(false); // Garante que o loading termine após o evento
+      setIsLoading(false); 
 
       if (event === 'SIGNED_IN' && (pathname === '/login' || pathname === '/register')) {
         console.log('[Navbar] SIGNED_IN event detected on login/register page, redirecting to /');
@@ -58,10 +66,7 @@ export function Navbar() {
         router.refresh(); 
       }
       if (event === 'SIGNED_OUT') {
-        console.log('[Navbar] SIGNED_OUT event detected, calling router.refresh()');
-        // A Server Action signOutUser já faz o redirect para '/'.
-        // O router.refresh() aqui é para garantir que a UI (incluindo Server Components na página)
-        // seja atualizada para refletir o estado de não autenticado.
+        console.log('[Navbar] SIGNED_OUT event detected. Refreshing router.');
         router.refresh();
       }
     });
@@ -70,7 +75,7 @@ export function Navbar() {
       console.log('[Navbar] Unsubscribing from auth listener.');
       authListener?.subscription.unsubscribe();
     };
-  }, [supabase, router, pathname]); // Adicionado router e pathname como dependências
+  }, [supabase, router, pathname]);
 
   return (
     <header className="bg-primary text-primary-foreground shadow-md sticky top-0 z-50">
@@ -99,7 +104,7 @@ export function Navbar() {
                 <UserCircle2 className="h-5 w-5 mr-1.5 text-accent" />
                 <span className="truncate max-w-[100px] lg:max-w-[150px]">{user.email}</span>
               </span>
-              <form action={signOutUser} method="POST">
+              <form action={signOutUser}>
                 <Button type="submit" variant="ghost" className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 px-2 lg:px-3 text-xs lg:text-sm">
                   <LogOut className="h-5 w-5 mr-1 sm:mr-2" /> Sair
                 </Button>
@@ -146,7 +151,7 @@ export function Navbar() {
                        <UserCircle2 className="h-6 w-6 mr-2.5 text-accent" />
                        {user.email}
                     </div>
-                    <form action={signOutUser} method="POST">
+                    <form action={signOutUser}>
                       <Button type="submit" variant="ghost" className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 justify-start w-full flex items-center gap-3 py-2.5 text-lg">
                         <LogOut className="h-5 w-5" /> Sair
                       </Button>

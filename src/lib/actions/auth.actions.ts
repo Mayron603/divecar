@@ -5,18 +5,20 @@ import { cookies } from 'next/headers';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { z } from 'zod';
 import { AuthError } from '@supabase/supabase-js';
+import { redirect } from 'next/navigation';
 
-// Não precisamos de Zod para este formulário simples por enquanto.
-// Se precisarmos, podemos adicionar:
-// import { z } from 'zod';
-// const SignUpSchema = z.object({ email: z.string().email(), password: z.string().min(6) });
+// Esquema para validação de SignUp (pode ser expandido)
+// const SignUpSchema = z.object({
+//   email: z.string().email(),
+//   password: z.string().min(6),
+// });
 
-interface SignUpUserCredentials {
+interface UserCredentials {
   email: string;
   password: string;
 }
 
-export async function signUpUser(credentials: SignUpUserCredentials) {
+export async function signUpUser(credentials: UserCredentials) {
   const cookieStore = cookies();
   const supabase = createSupabaseServerClient(cookieStore);
 
@@ -24,26 +26,60 @@ export async function signUpUser(credentials: SignUpUserCredentials) {
     email: credentials.email,
     password: credentials.password,
     options: {
-      // Você pode adicionar data_email_confirm aqui se quiser que seja enviado
-      // mesmo que a confirmação de e-mail esteja desativada no projeto Supabase.
-      // emailRedirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`, // Opcional: para onde redirecionar após a confirmação
+      // emailRedirectTo: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`, // Opcional
     },
   });
 
   if (error) {
     if (error instanceof AuthError) {
-        console.error('Supabase Auth Error:', error.message, error.status);
+        console.error('Supabase Auth SignUp Error:', error.message, error.status);
         return { error: { message: error.message, status: error.status }, data: null };
     }
     console.error('Unknown error during sign up:', error);
     return { error: { message: 'Ocorreu um erro desconhecido durante o registro.' }, data: null };
   }
 
-  // data.user será null se a confirmação de email estiver habilitada e o usuário ainda não confirmou.
-  // data.session será null até que o usuário confirme o email (se habilitado) E faça login.
-  // Se a confirmação de email estiver desabilitada, data.user e data.session serão preenchidos.
-  console.log('Sign up successful. User:', data.user, 'Session:', data.session);
+  console.log('Sign up processed. User data:', data.user, 'Session:', data.session);
+  // Se a confirmação de e-mail estiver habilitada, data.user pode existir mas data.session será null.
+  // Se a confirmação estiver desabilitada, ambos (user e session) devem ser preenchidos.
   return { error: null, data };
 }
 
-// Outras ações de autenticação (login, logout, etc.) podem ser adicionadas aqui.
+
+export async function signInUser(credentials: UserCredentials) {
+  const cookieStore = cookies();
+  const supabase = createSupabaseServerClient(cookieStore);
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: credentials.email,
+    password: credentials.password,
+  });
+
+  if (error) {
+    if (error instanceof AuthError) {
+      console.error('Supabase Auth SignIn Error:', error.message, error.status);
+      return { error: { message: error.message, status: error.status }, data: null };
+    }
+    console.error('Unknown error during sign in:', error);
+    return { error: { message: 'Ocorreu um erro desconhecido durante o login.' }, data: null };
+  }
+  
+  // signInWithPassword bem-sucedido define o cookie de sessão automaticamente.
+  console.log('Sign in successful. User:', data.user, 'Session:', data.session);
+  return { error: null, data };
+}
+
+export async function signOutUser() {
+  const cookieStore = cookies();
+  const supabase = createSupabaseServerClient(cookieStore);
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    console.error('Supabase Auth SignOut Error:', error);
+    // Mesmo que haja um erro, tentamos redirecionar
+    // Pode ser útil retornar o erro para o cliente se necessário no futuro.
+  }
+  // O Supabase SSR cuidará da limpeza dos cookies.
+  // Redirecionar para a página inicial após o logout.
+  return redirect('/');
+}

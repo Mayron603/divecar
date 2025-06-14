@@ -1,11 +1,17 @@
 
 import { HeroSection } from '@/components/sections/hero-section';
 import { InfoCard } from '@/components/common/info-card';
-import { Users, ScrollText, Info, Building, Video, Shirt } from 'lucide-react'; 
+import { Users, ScrollText, Info, Building, Video, Shirt, UserCircle2 } from 'lucide-react'; 
 import { PageHeader } from '@/components/common/page-header';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardDescription } from '@/components/ui/card';
+import { cookies } from 'next/headers';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
-export default function HomePage() {
+export default async function HomePage() { // Tornando a página um Server Component assíncrono
+  const cookieStore = cookies();
+  const supabase = createSupabaseServerClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+
   const infoCardsData = [
     {
       title: "Nossa Hierarquia",
@@ -30,6 +36,20 @@ export default function HomePage() {
   return (
     <div className="space-y-16">
       <HeroSection />
+
+      {user && (
+        <Card className="mt-8 mb-12 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3">
+              <UserCircle2 className="h-8 w-8 text-primary" />
+              <div>
+                <p className="text-lg font-semibold text-primary">Bem-vindo(a) de volta!</p>
+                <CardDescription className="text-muted-foreground">{user.email}</CardDescription>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <section>
         <PageHeader 
@@ -112,3 +132,4 @@ export default function HomePage() {
     </div>
   );
 }
+

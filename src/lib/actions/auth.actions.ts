@@ -29,6 +29,8 @@ interface AuthResponse {
 
 
 export async function signUpUser(credentials: UserCredentials): Promise<AuthResponse> {
+  const functionName = "signUpUser";
+  console.log(`[AuthActions][${functionName}] Iniciando registro para:`, credentials.email);
   const supabase = createSupabaseServerClient();
 
   const vercelUrl = process.env.VERCEL_URL;
@@ -43,10 +45,8 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
     siteUrl = 'http://localhost:3000'; 
   }
   const callbackUrl = `${siteUrl}/auth/callback`;
-
-  console.log('[AuthActions] signUpUser: Iniciando registro para:', credentials.email);
-  console.log('[AuthActions] signUpUser: callbackUrl para emailRedirectTo:', callbackUrl);
-  console.log('[AuthActions] signUpUser: VERIFIQUE A CONFIGURAÇÃO "Alteração segura de e-mail" NO PAINEL SUPABASE. DEVE ESTAR DESABILITADA.');
+  console.log(`[AuthActions][${functionName}] callbackUrl para emailRedirectTo: ${callbackUrl}`);
+  console.log(`[AuthActions][${functionName}] VERIFIQUE "Alteração segura de e-mail" NO SUPABASE. Idealmente DESABILITADA para esta lógica funcionar como esperado.`);
 
   const { data, error: supabaseError } = await supabase.auth.signUp({
     email: credentials.email,
@@ -56,47 +56,16 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
     },
   });
 
-  // =====================================================================================
-  // LOGGING DETALHADO DA RESPOSTA DO SUPABASE - ESSENCIAL PARA DEBUG
-  // =====================================================================================
   if (supabaseError) {
-    console.error('[AuthActions] signUpUser: Supabase Auth SignUp retornou um ERRO EXPLÍCITO.');
-    console.error('[AuthActions] signUpUser: Objeto de erro completo:', JSON.stringify(supabaseError, Object.getOwnPropertyNames(supabaseError), 2));
-  } else {
-    console.log('[AuthActions] signUpUser: Supabase Auth SignUp NÃO retornou erro explícito.');
-  }
-
-  if (data) {
-    console.log('[AuthActions] signUpUser: Supabase Auth SignUp retornou DADOS.');
-    if (data.user) {
-        console.log('[AuthActions] signUpUser: DETALHES DO data.user (objeto user desta chamada signUp) -> ID:', data.user.id);
-        console.log('[AuthActions] signUpUser: DETALHES DO data.user -> Email:', data.user.email);
-        console.log('[AuthActions] signUpUser: DETALHES DO data.user -> email_confirmed_at (da identidade desta chamada signUp):', data.user.email_confirmed_at);
-        console.log('[AuthActions] signUpUser: DETALHES DO data.user -> created_at (da identidade desta chamada signUp):', data.user.created_at);
-        console.log('[AuthActions] signUpUser: DETALHES DO data.user -> identities (histórico de identidades para este user object):', data.user.identities ? JSON.stringify(data.user.identities, null, 2) : 'NULO ou VAZIO');
-    } else {
-        console.log('[AuthActions] signUpUser: Supabase Auth SignUp retornou DADOS, mas data.user é NULO.');
-    }
-    if (data.session) {
-        console.log('[AuthActions] signUpUser: Supabase Auth SignUp retornou DADOS de SESSÃO (incomum para signUp inicial).');
-    } else {
-        console.log('[AuthActions] signUpUser: Supabase Auth SignUp retornou DADOS, mas data.session é NULO (esperado para signUp inicial).');
-    }
-  } else {
-    console.log('[AuthActions] signUpUser: Supabase Auth SignUp NÃO retornou dados (data é nulo).');
-  }
-  // =====================================================================================
-  // FIM DO LOGGING DETALHADO
-  // =====================================================================================
-
-  if (supabaseError) {
+    console.error(`[AuthActions][${functionName}] Supabase Auth SignUp retornou um ERRO EXPLÍCITO.`);
+    console.error(`[AuthActions][${functionName}] Objeto de erro completo:`, JSON.stringify(supabaseError, Object.getOwnPropertyNames(supabaseError), 2));
+    
     let errorMessage = supabaseError.message || 'Ocorreu um erro desconhecido durante o registro.';
     let errorName: string | undefined = supabaseError.name;
     let errorStatus: number | undefined = (supabaseError as any).status || (supabaseError as any).code; 
                                          
     const lowerMessage = (supabaseError.message || '').toLowerCase();
 
-    // Check for explicit "user already exists" type errors (usually for confirmed users when Secure Email Change is OFF)
     if (
         (typeof errorStatus === 'string' && (errorStatus.includes('400') || errorStatus.includes('409') || errorStatus.includes('422'))) || 
         (typeof errorStatus === 'number' && (errorStatus === 400 || errorStatus === 409 || errorStatus === 422)) ||
@@ -106,96 +75,75 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
        ) {
       errorMessage = 'Este e-mail já está registrado e confirmado. Tente fazer login.';
       errorName = 'UserAlreadyExistsError';
-      console.log(`[AuthActions] signUpUser: Detectado erro de usuário já existente e CONFIRMADO (via supabaseError): ${errorMessage}. Status: ${errorStatus}`);
+      console.log(`[AuthActions][${functionName}] Detectado erro de usuário já existente e CONFIRMADO (via supabaseError): ${errorMessage}. Status: ${errorStatus}`);
     } else if (lowerMessage.includes('rate limit exceeded')) {
         errorMessage = 'Limite de tentativas excedido. Por favor, tente novamente mais tarde.';
         errorName = 'RateLimitError';
-        console.log(`[AuthActions] signUpUser: Detectado erro de limite de taxa (via supabaseError): ${errorMessage}`);
+        console.log(`[AuthActions][${functionName}] Detectado erro de limite de taxa (via supabaseError): ${errorMessage}`);
     } else {
-      console.log(`[AuthActions] signUpUser: Erro genérico do Supabase (via supabaseError): ${errorMessage}, Nome: ${errorName}, Status: ${errorStatus}`);
+      console.log(`[AuthActions][${functionName}] Erro genérico do Supabase (via supabaseError): ${errorMessage}, Nome: ${errorName}, Status: ${errorStatus}`);
     }
     return { error: { message: errorMessage, name: errorName, status: errorStatus as number | undefined }, data: null };
   }
-
-  // Se NÃO houve erro explícito do Supabase, analisamos data.user
-  if (data && data.user) {
-    const user = data.user;
-
-    // SCENARIO 1: O e-mail já era conhecido pelo Supabase (array identities NÃO é vazio)
-    if (user.identities && user.identities.length > 0) {
-        // Verificar se ALGUMA das identidades pré-existentes para este e-mail já estava confirmada.
-        const isPreviouslyConfirmed = user.identities.some(identity => {
-            // Logar cada identidade para depuração
-            // console.log('[AuthActions] signUpUser: Verificando identidade pré-existente:', JSON.stringify(identity, null, 2));
-            return identity.provider === 'email' &&
-                   identity.identity_data &&
-                   ( (identity.identity_data as any).email_verified_at || (identity.identity_data as any).verified === true );
-        });
-
-        if (isPreviouslyConfirmed) {
-            console.log('[AuthActions] signUpUser: SCENARIO 1 (NO EXPLICIT ERROR) - E-mail já registrado e CONFIRMADO (baseado em user.identities pré-existentes e verificadas). Email:', user.email);
-            return {
-                error: {
-                    message: 'Este e-mail já está registrado e confirmado. Tente fazer login.',
-                    name: 'UserAlreadyExistsError',
-                },
-                data: null
-            };
-        } else {
-            // Se user.identities não está vazio, mas nenhuma identidade pré-existente para este e-mail estava confirmada
-            // (ou user.email_confirmed_at DESTA CHAMADA signUp é nulo), então é um e-mail já cadastrado mas não confirmado.
-            // Supabase está reenviando a confirmação.
-            console.log('[AuthActions] signUpUser: SCENARIO 2 (NO EXPLICIT ERROR) - E-mail já cadastrado, NÃO CONFIRMADO (identities existem, mas nenhuma confirmada para este email). Reenviando confirmação. Email:', user.email);
-            return {
-                error: null,
-                data: {
-                    user: user,
-                    session: data.session, // Geralmente null aqui
-                    message: 'Este e-mail já está cadastrado, mas não confirmado. Enviamos um novo e-mail de confirmação. Por favor, verifique sua caixa de entrada.'
-                }
-            };
-        }
-    } 
-    // SCENARIO 3: Usuário é genuinamente NOVO (array identities ESTÁ VAZIO ou nulo)
-    // `email_confirmed_at` na `data.user` (desta chamada signUp) será `null` pois é uma nova conta aguardando confirmação.
-    else if (!user.identities || user.identities.length === 0) {
-      console.log('[AuthActions] signUpUser: SCENARIO 3 (NO EXPLICIT ERROR) - Usuário NOVO (identities é nulo ou vazio). Enviando confirmação. Email:', user.email);
-      return {
-        error: null,
-        data: {
-          user: user,
-          session: data.session, // Geralmente null aqui
-          message: 'Conta criada com sucesso! Por favor, verifique seu e-mail para confirmar sua conta.'
-        }
-      };
-    } else {
-      // Fallback para uma lógica inesperada sobre identities.
-      console.warn('[AuthActions] signUpUser: Lógica de identities inesperada (NO EXPLICIT ERROR), e não se encaixa nos cenários 1, 2 ou 3. User object:', JSON.stringify(user, null, 2));
-      // Como fallback, se o email_confirmed_at do usuário desta chamada for verdadeiro (altamente improvável sem erro), trate como confirmado.
-      if (user.email_confirmed_at) { 
-          return {
-              error: {
-                  message: 'Este e-mail parece já estar registrado e confirmado (fallback extremo). Tente fazer login.',
-                  name: 'UserAlreadyExistsError',
-              },
-              data: null
-          };
-      }
-      // Caso contrário, assumir reenvio de confirmação como medida de segurança.
-      return {
-          error: null,
-          data: {
-              user: user,
-              session: data.session,
-              message: 'Este e-mail parece já estar cadastrado (fallback extremo). Enviamos um novo e-mail de confirmação. Verifique sua caixa de entrada.'
-          }
-      };
-    }
+  
+  console.log(`[AuthActions][${functionName}] Supabase Auth SignUp NÃO retornou erro explícito.`);
+  if (!data || !data.user) {
+    console.warn(`[AuthActions][${functionName}] Supabase signUp NÃO retornou erro explícito E NÃO retornou data.user. Data:`, JSON.stringify(data));
+    return { error: { message: 'Resposta inesperada do servidor durante o registro (sem usuário). Tente novamente.' }, data: null };
   }
 
-  // Fallback para um estado totalmente inesperado (sem erro, sem data ou sem data.user)
-  console.warn('[AuthActions] Supabase signUp retornou um estado inesperado (sem erro explícito e sem data.user). Data:', JSON.stringify(data));
-  return { error: { message: 'Resposta inesperada do servidor durante o registro. Por favor, tente novamente.' }, data: null };
+  const user = data.user;
+  console.log(`[AuthActions][${functionName}] DETALHES DO data.user (objeto user desta chamada signUp) -> ID:`, user.id);
+  console.log(`[AuthActions][${functionName}] DETALHES DO data.user -> Email:`, user.email);
+  console.log(`[AuthActions][${functionName}] DETALHES DO data.user -> email_confirmed_at (da identidade DESTA CHAMADA signUp):`, user.email_confirmed_at);
+  console.log(`[AuthActions][${functionName}] DETALHES DO data.user -> created_at (da identidade DESTA CHAMADA signUp):`, user.created_at);
+  console.log(`[AuthActions][${functionName}] DETALHES DO data.user -> identities (histórico de identidades para este user object):`, user.identities ? JSON.stringify(user.identities, null, 2) : 'NULO ou VAZIO');
+  
+  if (user.identities && user.identities.length > 0) {
+    // Verifica se alguma identidade pré-existente para este e-mail já estava confirmada
+    const isPreviouslyConfirmed = user.identities.some(identity => {
+      // Log específico para cada identidade sendo verificada
+      // console.log(`[AuthActions][${functionName}] Verificando identidade pré-existente: provider=${identity.provider}, identity_data.email_verified_at=${(identity.identity_data as any)?.email_verified_at}, identity.identity_data.verified=${(identity.identity_data as any)?.verified}`);
+      return identity.provider === 'email' &&
+             identity.identity_data &&
+             ( (identity.identity_data as any).email_verified_at || (identity.identity_data as any).verified === true );
+    });
+
+    if (isPreviouslyConfirmed) {
+        console.log(`[AuthActions][${functionName}] SCENARIO 1 (NO EXPLICIT ERROR) - E-mail já registrado e CONFIRMADO (baseado em user.identities pré-existentes e verificadas). Email:`, user.email);
+        return {
+            error: {
+                message: 'Este e-mail já está registrado e confirmado. Tente fazer login.',
+                name: 'UserAlreadyExistsError',
+            },
+            data: null
+        };
+    } else {
+        // Se user.identities não está vazio, mas nenhuma identidade pré-existente para este e-mail estava confirmada
+        console.log(`[AuthActions][${functionName}] SCENARIO 2 (NO EXPLICIT ERROR) - E-mail já cadastrado, NÃO CONFIRMADO (identities existem, mas nenhuma confirmada para este email). Reenviando confirmação. Email:`, user.email);
+        return {
+            error: null,
+            data: {
+                user: user,
+                session: data.session, // Geralmente null aqui
+                message: 'Este e-mail já está cadastrado, mas não confirmado. Enviamos um novo e-mail de confirmação. Por favor, verifique sua caixa de entrada.'
+            }
+        };
+    }
+  } 
+  // SCENARIO 3: Usuário é genuinamente NOVO (array identities ESTÁ VAZIO ou nulo)
+  // `email_confirmed_at` na `data.user` (desta chamada signUp) será `null` pois é uma nova conta aguardando confirmação.
+  else {
+    console.log(`[AuthActions][${functionName}] SCENARIO 3 (NO EXPLICIT ERROR) - Usuário NOVO (identities é nulo ou vazio). Enviando confirmação. Email:`, user.email);
+    return {
+      error: null,
+      data: {
+        user: user,
+        session: data.session, // Geralmente null aqui
+        message: 'Conta criada com sucesso! Por favor, verifique seu e-mail para confirmar sua conta.'
+      }
+    };
+  }
 }
 
 
@@ -262,6 +210,50 @@ export async function signInUser(credentials: UserCredentials): Promise<AuthResp
 }
 
 
+export async function signInWithGoogle() {
+  const supabase = createSupabaseServerClient();
+  const vercelUrl = process.env.VERCEL_URL;
+  const explicitBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  
+  let siteUrl;
+  if (explicitBaseUrl) {
+    siteUrl = explicitBaseUrl;
+  } else if (vercelUrl) {
+    siteUrl = `https://${vercelUrl}`;
+  } else {
+    siteUrl = 'http://localhost:3000'; 
+  }
+  const redirectURL = `${siteUrl}/auth/callback`;
+
+  console.log('[AuthActions] signInWithGoogle: Iniciando login com Google. Redirecionando para:', redirectURL);
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: redirectURL,
+      // Você pode adicionar escopos se precisar de mais permissões do Google
+      // scopes: 'email profile https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+    },
+  });
+
+  if (error) {
+    console.error('[AuthActions] signInWithGoogle: Erro ao iniciar OAuth com Google:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    // Não podemos retornar o erro aqui diretamente para o cliente, pois o redirecionamento acontece.
+    // O erro, se ocorrer, geralmente será mostrado na página do provedor OAuth ou na página de callback.
+    // Poderíamos redirecionar para uma página de erro aqui, mas o redirect() do Next.js é o mais comum.
+    return redirect(`/login?error=oauth_error&error_description=${encodeURIComponent(error.message)}`);
+  }
+
+  if (data.url) {
+    console.log('[AuthActions] signInWithGoogle: URL de autorização do Google recebida. Redirecionando para:', data.url);
+    redirect(data.url); // Redireciona o usuário para a página de login do Google
+  } else {
+    console.error('[AuthActions] signInWithGoogle: Nenhuma URL de autorização retornada pelo Supabase.');
+    return redirect('/login?error=oauth_error&error_description=Falha ao obter URL de autorização do Google.');
+  }
+}
+
+
 export async function signOutUser() {
   const supabase = createSupabaseServerClient();
   console.log('[AuthActions] signOutUser: Tentando logout (server action)...');
@@ -274,6 +266,8 @@ export async function signOutUser() {
   }
   redirect('/');
 }
+    
+
     
 
     

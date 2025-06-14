@@ -27,13 +27,15 @@ export default function RegisterPage() {
     setSuccessMessage(null);
 
     if (password !== confirmPassword) {
-      setError('As senhas não coincidem.');
-      toast({ variant: 'destructive', title: 'Erro de Validação', description: 'As senhas não coincidem.' });
+      const msg = 'As senhas não coincidem.';
+      setError(msg);
+      toast({ variant: 'destructive', title: 'Erro de Validação', description: msg });
       return;
     }
     if (password.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres.');
-      toast({ variant: 'destructive', title: 'Erro de Validação', description: 'A senha deve ter pelo menos 6 caracteres.' });
+      const msg = 'A senha deve ter pelo menos 6 caracteres.';
+      setError(msg);
+      toast({ variant: 'destructive', title: 'Erro de Validação', description: msg });
       return;
     }
 
@@ -43,36 +45,40 @@ export default function RegisterPage() {
       const result = await signUpUser({ email, password });
 
       if (result.error) {
-        setError(result.error.message || 'Ocorreu um erro durante o registro.');
-        toast({ variant: 'destructive', title: 'Erro no Registro', description: result.error.message || 'Ocorreu um erro durante o registro.' });
-      } else if (result.data?.user) {
-        // Supabase Auth handles email confirmation flow.
-        // If user exists but is unconfirmed, it might resend confirmation.
-        // If user is confirmed, it might return an error (user already exists).
-        // The specific behavior of result.data.user.identities might vary or not be relevant for simple email/pass.
-        
-        // A common case for a successful signUp where email confirmation is required:
-        if (result.data.session === null && result.data.user.email_confirmed_at === null) {
-            setSuccessMessage('Registro realizado com sucesso! Por favor, verifique seu e-mail para confirmar sua conta.');
-            toast({ title: 'Registro Quase Completo!', description: 'Verifique seu e-mail para confirmar sua conta.' });
+        // Se for o erro customizado de "usuário já existe"
+        if (result.error.name === 'UserAlreadyExistsError') {
+          setError(result.error.message);
+          toast({ variant: 'destructive', title: 'Falha no Registro', description: result.error.message });
+        } else {
+          // Outros erros
+          const errorMessage = result.error.message || 'Ocorreu um erro durante o registro.';
+          setError(errorMessage);
+          toast({ variant: 'destructive', title: 'Erro no Registro', description: errorMessage });
+        }
+        setSuccessMessage(null);
+      } else if (result.data && result.data.message) {
+        // Usa a mensagem de sucesso específica da Server Action
+        setSuccessMessage(result.data.message);
+        toast({ title: 'Registro Enviado!', description: result.data.message });
+        // Limpa os campos apenas em caso de sucesso claro de novo registro
+        if (result.data.message.includes('Conta criada com sucesso')) {
             setEmail('');
             setPassword('');
             setConfirmPassword('');
-        } else if (result.data.user) { // Catch-all for other user states, might need refinement
-            setSuccessMessage('Conta criada ou já existente. Se nova, verifique seu e-mail.');
-            toast({ title: 'Ação Processada', description: 'Verifique seu e-mail ou tente fazer login.' });
-        } else {
-             setError('Resposta inesperada do servidor durante o registro.');
-             toast({ variant: 'destructive', title: 'Erro Inesperado', description: 'Resposta inesperada do servidor.' });
         }
+        setError(null); 
       } else {
-         setError('Resposta inesperada do servidor durante o registro.');
-         toast({ variant: 'destructive', title: 'Erro Inesperado', description: 'Resposta inesperada do servidor.' });
+         // Fallback para um estado inesperado, mas que não é um erro explícito.
+         const unexpectedMsg = 'Resposta inesperada do servidor.';
+         setError(unexpectedMsg);
+         toast({ variant: 'destructive', title: 'Erro Inesperado', description: unexpectedMsg });
+         setSuccessMessage(null);
       }
     } catch (e: any) {
-      const errorMessage = e.message || 'Ocorreu um erro inesperado durante o registro.';
+      const errorMessage = e.message || 'Ocorreu um erro crítico durante o registro.';
       setError(errorMessage);
       toast({ variant: 'destructive', title: 'Erro Crítico', description: errorMessage });
+      setSuccessMessage(null);
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +115,7 @@ export default function RegisterPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="•••••••• (mínimo 6 caracteres)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -144,7 +150,7 @@ export default function RegisterPage() {
                 <p>{successMessage}</p>
               </div>
             )}
-            <Button type="submit" className="w-full" disabled={isLoading || !!successMessage}>
+            <Button type="submit" className="w-full" disabled={isLoading || (!!successMessage && successMessage.includes('Conta criada com sucesso'))}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -166,3 +172,4 @@ export default function RegisterPage() {
     </div>
   );
 }
+

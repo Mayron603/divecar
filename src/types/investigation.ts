@@ -1,7 +1,4 @@
 
-// No longer need Firebase Timestamp
-// import type { Timestamp } from 'firebase/firestore'; 
-
 export interface Investigation {
   id: string; // Supabase UUID
   title: string;

@@ -4,7 +4,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import type { AuthError, User, Session } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers'; // Ainda necessário para o redirect, mas não para o client
+import { cookies } from 'next/headers';
 
 interface UserCredentials {
   email: string;
@@ -38,7 +38,7 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
 
   console.log('[AuthActions] signUpUser: callbackUrl for emailRedirectTo:', callbackUrl);
 
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error: supabaseError } = await supabase.auth.signUp({
     email: credentials.email,
     password: credentials.password,
     options: {
@@ -46,36 +46,29 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
     },
   });
 
-  if (error) {
-    console.error('[AuthActions] Supabase Auth SignUp Raw Error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
-    let errorMessage = error.message || 'Ocorreu um erro desconhecido durante o registro.';
-    let errorName: string | undefined = error.name;
-    let errorStatus: number | undefined = undefined;
+  if (supabaseError) {
+    console.error('[AuthActions] Supabase Auth SignUp Raw Error:', JSON.stringify(supabaseError, Object.getOwnPropertyNames(supabaseError)));
     
-    if (typeof error === 'object' && error !== null) {
-      errorStatus = (error as any).status; // Common place for HTTP status
-    }
+    let errorMessage = supabaseError.message || 'Ocorreu um erro desconhecido durante o registro.';
+    let errorName: string | undefined = supabaseError.name;
+    let errorStatus: number | undefined = (supabaseError as any).status;
 
+    const lowerMessage = supabaseError.message.toLowerCase();
 
-    // Check for "User already registered" or similar errors
-    const lowerMessage = error.message.toLowerCase();
+    // Specific check for user already registered
     if (
-        lowerMessage.includes('user already registered') ||
-        lowerMessage.includes('email address already registered by another user') ||
-        (errorStatus === 400 && lowerMessage.includes('user already exists')) ||
-        (errorStatus === 422 && lowerMessage.includes('already registered')) ||
-        (errorName === 'AuthApiError' && errorStatus === 400 && lowerMessage.includes('user already exists')) // More specific check for some Supabase versions
+        (errorStatus === 400 && (lowerMessage.includes('user already exists') || lowerMessage.includes('a user with this email address has already been registered'))) ||
+        (errorStatus === 422 && lowerMessage.includes('already registered')) || // Older Supabase versions might use 422
+        lowerMessage.includes('user already registered') || // General catch
+        lowerMessage.includes('email address already registered by another user')
        ) {
       errorMessage = 'Este e-mail já está registrado. Tente fazer login.';
-      errorName = 'UserAlreadyExistsError';
+      errorName = 'UserAlreadyExistsError'; // Crucial for client-side handling
     } else if (lowerMessage.includes('rate limit exceeded')) {
         errorMessage = 'Limite de tentativas excedido. Por favor, tente novamente mais tarde.';
         errorName = 'RateLimitError';
-    } else {
-      // Keep original error name if not one of the above special cases
-      errorName = error.name;
     }
-
+    // For other errors, use the prepared message or the original one.
     return { error: { message: errorMessage, name: errorName, status: errorStatus }, data: null };
   }
 
@@ -93,6 +86,7 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
 
   if (data.user && data.session) {
       console.log('[AuthActions] signUpUser successful and session created (auto-confirmation likely enabled). User ID:', data.user.id);
+      // This path is less common if email confirmation is on, but handle it.
       return {
         error: null,
         data: {
@@ -103,7 +97,8 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
       };
   }
 
-  console.warn('[AuthActions] Supabase signUp returned unexpected data/error state:', { data, error });
+  // Fallback for unexpected Supabase response
+  console.warn('[AuthActions] Supabase signUp returned unexpected data/error state:', { data, error: supabaseError });
   return { error: { message: 'Resposta inesperada do servidor durante o registro.' }, data: null };
 }
 
@@ -111,37 +106,40 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
 export async function signInUser(credentials: UserCredentials): Promise<AuthResponse> {
   const supabase = createSupabaseServerClient();
   console.log('[AuthActions] Attempting to sign in user:', credentials.email);
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
     email: credentials.email,
     password: credentials.password,
   });
 
-  if (error) {
-    console.error('[AuthActions] Supabase Auth SignIn Raw Error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+  if (supabaseError) {
+    console.error('[AuthActions] Supabase Auth SignIn Raw Error:', JSON.stringify(supabaseError, Object.getOwnPropertyNames(supabaseError)));
     let friendlyMessage = 'Falha no login. Verifique suas credenciais ou tente novamente mais tarde.';
-    let errorName: string | undefined = error.name;
-    let errorStatus: number | undefined = undefined;
+    let errorName: string | undefined = supabaseError.name;
+    let errorStatus: number | undefined = (supabaseError as any).status;
 
-    if (typeof error === 'object' && error !== null) {
-        const lowerMessage = String((error as any).message).toLowerCase();
-        errorStatus = (error as any).status; // Common place for HTTP status
+    const lowerMessage = supabaseError.message.toLowerCase();
 
-        if (lowerMessage.includes('invalid login credentials')) {
-            friendlyMessage = 'Credenciais de login inválidas. Verifique seu e-mail e senha.';
-        } else if (lowerMessage.includes('email not confirmed')) {
-            friendlyMessage = 'Seu e-mail ainda não foi confirmado. Por favor, verifique sua caixa de entrada e spam pelo link de confirmação.';
-        } else {
-            // For other errors, use the message from Supabase if available, but keep it understandable
-            friendlyMessage = (error as any).message || friendlyMessage;
-        }
-        errorName = (error as any).name || errorName;
+    if (lowerMessage.includes('invalid login credentials')) {
+        friendlyMessage = 'Credenciais de login inválidas. Verifique seu e-mail e senha.';
+    } else if (lowerMessage.includes('email not confirmed')) {
+        friendlyMessage = 'Seu e-mail ainda não foi confirmado. Por favor, verifique sua caixa de entrada e spam pelo link de confirmação.';
+        errorName = 'EmailNotConfirmedError'; // Specific name for client if needed
+    } else if (lowerMessage.includes('rate limit exceeded')) {
+        friendlyMessage = 'Limite de tentativas excedido. Por favor, tente novamente mais tarde.';
+        errorName = 'RateLimitError';
     }
-    
+    // For other errors, use the prepared message or the original one.
     return { error: { message: friendlyMessage, name: errorName, status: errorStatus }, data: null };
   }
 
-  console.log('[AuthActions] Sign in successful. User:', data.user?.id, 'Session:', data.session !== null);
-  return { error: null, data: { user: data.user, session: data.session } };
+  if (data.user && data.session) {
+    console.log('[AuthActions] Sign in successful. User:', data.user?.id, 'Session:', data.session !== null);
+    return { error: null, data: { user: data.user, session: data.session } };
+  }
+  
+  // Fallback for unexpected Supabase response
+  console.warn('[AuthActions] Supabase signInWithPassword returned unexpected data/error state:', { data, error: supabaseError });
+  return { error: { message: 'Resposta inesperada do servidor durante o login.' }, data: null };
 }
 
 export async function signOutUser() {
@@ -156,4 +154,3 @@ export async function signOutUser() {
   }
   redirect('/'); 
 }
-

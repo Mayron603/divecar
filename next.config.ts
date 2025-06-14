@@ -21,13 +21,12 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'hfjpzzlwgpgyqzpsokcc.supabase.co',
         port: '',
-        pathname: '/**', // Permite qualquer caminho dentro deste hostname
+        pathname: '/**', 
       },
     ],
   },
-  serverActions: {
-    bodySizeLimit: '10mb',
-  },
+  // Removed serverActions block to address Vercel build warning
+  // Default bodySizeLimit is 1MB, can be re-added if specific actions need more.
 };
 
 export default nextConfig;

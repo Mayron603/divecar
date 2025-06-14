@@ -54,18 +54,12 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
     let errorStatus: number | undefined = (supabaseError as any).status;
     const lowerMessage = (supabaseError.message || '').toLowerCase();
 
-    // Condições mais específicas para "usuário já existe e confirmado"
-    // Supabase costuma retornar status 400 ou 422 com mensagens como:
-    // "User already registered"
-    // "Email address already registered by another user"
-    // "A user with this email address has already been registered"
-    // "duplicate key value violates unique constraint" (se houver constraint no DB)
     if (
         lowerMessage.includes('user already registered') ||
         lowerMessage.includes('email address already registered by another user') ||
-        lowerMessage.includes('user already exists') || // Adicionado para maior abrangência
-        (errorStatus === 400 && lowerMessage.includes('already registered')) || // Comum para "User already registered"
-        (errorStatus === 422 && lowerMessage.includes('already registered')) ||
+        lowerMessage.includes('user already exists') ||
+        (errorStatus === 400 && lowerMessage.includes('already registered')) || 
+        (errorStatus === 422 && lowerMessage.includes('already registered')) || // Common for "User already registered" by Supabase
         (errorStatus === 409) // HTTP 409 Conflict
        ) {
       errorMessage = 'Este e-mail já está registrado e confirmado. Tente fazer login.';
@@ -74,19 +68,45 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
         errorMessage = 'Limite de tentativas excedido. Por favor, tente novamente mais tarde.';
         errorName = 'RateLimitError';
     }
-    // Outras condições de erro podem ser adicionadas aqui
     
     return { error: { message: errorMessage, name: errorName, status: errorStatus }, data: null };
   }
 
   // Se não houve erro explícito do Supabase, analisamos data.user
-  // Esta parte é crucial e pode ser onde a lógica anterior falhava para e-mails confirmados.
   if (data.user) {
     const user = data.user;
     console.log('[AuthActions] signUpUser: User data returned from Supabase (no explicit error):', JSON.stringify(user, null, 2));
-    if (user.identities && user.identities.length === 0) {
-        // user.identities é um array. Se estiver vazio, Supabase considera um novo usuário.
-        // E não há email_confirmed_at neste ponto para um usuário realmente novo.
+    
+    // Cenário 1: Usuário tem identidades e o e-mail JÁ está confirmado.
+    // Isso é mais provável se "Secure Email Change" estiver habilitado e o Supabase não lançou erro,
+    // ou se, mesmo desabilitado, algo anômalo ocorreu.
+    if (user.identities && user.identities.length > 0 && user.email_confirmed_at) {
+        console.warn('[AuthActions] signUpUser: User data returned, identities exist, AND email_confirmed_at is set. Email is already confirmed. Email:', user.email);
+        return {
+            error: {
+                message: 'Este e-mail já está registrado e confirmado. Tente fazer login.',
+                name: 'UserAlreadyExistsError', // Sinaliza para o formulário de registro tratar como erro
+            },
+            data: null
+        };
+    }
+    // Cenário 2: Usuário tem identidades, mas o e-mail NÃO está confirmado (email_confirmed_at é null).
+    // Isso significa que o e-mail já foi registrado anteriormente, mas nunca confirmado.
+    // Supabase está reenviando o e-mail de confirmação.
+    else if (user.identities && user.identities.length > 0 && !user.email_confirmed_at) {
+        console.log('[AuthActions] signUpUser: User has identities but email_confirmed_at is null. Re-sending confirmation. Email:', user.email);
+        return {
+            error: null, // Não é um "erro" para o formulário, mas uma mensagem informativa.
+            data: {
+                user: user,
+                session: null,
+                message: 'Este e-mail já está cadastrado, mas não confirmado. Enviamos um novo e-mail de confirmação. Por favor, verifique sua caixa de entrada.'
+            }
+        };
+    }
+    // Cenário 3: Usuário NÃO tem identidades (user.identities é um array vazio ou ausente).
+    // Este é um usuário genuinamente novo.
+    else if (!user.identities || user.identities.length === 0) {
         console.log('[AuthActions] signUpUser: User has no identities, considered new. Sending confirmation. Email:', user.email);
         return {
             error: null,
@@ -96,39 +116,18 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
             message: 'Conta criada com sucesso! Por favor, verifique seu e-mail para confirmar sua conta.'
             }
         };
-    } else {
-        // O usuário tem identidades, ou seja, já existe no sistema de alguma forma.
-        // O Supabase, neste caso (sem erro explícito), geralmente indica que está reenviando a confirmação
-        // para um usuário existente não confirmado, ou lidando com um cenário onde múltiplas identidades
-        // para o mesmo e-mail podem existir (dependendo da configuração do Supabase).
-        // Se `user.email_confirmed_at` estiver preenchido AQUI, é uma situação estranha para um `signUp` sem erro,
-        // mas se ocorrer, indica que o e-mail JÁ ESTÁ CONFIRMADO.
-        if (user.email_confirmed_at) {
-             console.warn('[AuthActions] signUpUser: User data returned, identities exist, AND email_confirmed_at is set. Email is already confirmed. Email:', user.email);
-             return {
-                error: {
-                    message: 'Este e-mail já está registrado e confirmado. Tente fazer login.',
-                    name: 'UserAlreadyExistsError',
-                },
-                data: null
-            };
-        } else {
-            // Usuário existe (tem identidades), mas o e-mail não está confirmado (email_confirmed_at é null).
-            // Supabase está reenviando o e-mail de confirmação.
-            console.log('[AuthActions] signUpUser: User has identities but email_confirmed_at is null. Re-sending confirmation. Email:', user.email);
-            return {
-                error: null, // Não é um "erro" para o formulário, mas uma mensagem informativa.
-                data: {
-                    user: user,
-                    session: null,
-                    message: 'Este e-mail já está cadastrado, mas não confirmado. Enviamos um novo e-mail de confirmação. Por favor, verifique sua caixa de entrada.'
-                }
-            };
-        }
+    }
+    // Fallback dentro da análise de data.user - comportamento inesperado
+    else {
+        console.warn('[AuthActions] signUpUser: User data analysis fallback. User object:', JSON.stringify(user, null, 2));
+        return {
+            error: { message: 'Não foi possível determinar o status do registro. Tente novamente.' },
+            data: null
+        };
     }
   }
   
-  // Fallback para um estado inesperado (sem erro, sem usuário)
+  // Fallback para um estado totalmente inesperado (sem erro, sem usuário)
   console.warn('[AuthActions] Supabase signUp retornou um estado inesperado (sem erro, sem usuário). Data:', JSON.stringify(data));
   return { error: { message: 'Resposta inesperada do servidor durante o registro.' }, data: null };
 }

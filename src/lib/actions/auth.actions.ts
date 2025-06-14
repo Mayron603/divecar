@@ -17,14 +17,20 @@ interface SignUpResponseData {
   message?: string;
 }
 
+interface AuthResponseError {
+  message: string;
+  name?: string;
+  status?: number;
+}
+
 interface AuthResponse {
   data: SignUpResponseData | null;
-  error: { message: string; name?: string; status?: number } | null;
+  error: AuthResponseError | null;
 }
 
 
 export async function signUpUser(credentials: UserCredentials): Promise<AuthResponse> {
-  const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
+  const supabase = createSupabaseServerClient();
   
   const callbackUrl = process.env.NEXT_PUBLIC_BASE_URL ? 
                       `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback` : 
@@ -41,26 +47,36 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
   });
 
   if (error) {
-    console.error('[AuthActions] Supabase Auth SignUp Error:', error.message, 'Status:', error.status, 'Name:', error.name);
-    const genericErrorMessage = 'Ocorreu um erro desconhecido durante o registro.';
-    let errorMessage = error.message || genericErrorMessage;
-    let errorName = error.name;
+    console.error('[AuthActions] Supabase Auth SignUp Raw Error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    let errorMessage = error.message || 'Ocorreu um erro desconhecido durante o registro.';
+    let errorName: string | undefined = error.name;
+    let errorStatus: number | undefined = undefined;
+    
+    if (typeof error === 'object' && error !== null) {
+      errorStatus = (error as any).status; // Common place for HTTP status
+    }
 
-    if (error instanceof AuthError &&
-        (error.message.toLowerCase().includes('user already registered') ||
-         error.message.toLowerCase().includes('email address already registered by another user') ||
-         (error.status === 400 && error.message.toLowerCase().includes('user already exists')) || 
-         (error.status === 422 && error.message.toLowerCase().includes('already registered')) 
-        )
+
+    // Check for "User already registered" or similar errors
+    const lowerMessage = error.message.toLowerCase();
+    if (
+        lowerMessage.includes('user already registered') ||
+        lowerMessage.includes('email address already registered by another user') ||
+        (errorStatus === 400 && lowerMessage.includes('user already exists')) ||
+        (errorStatus === 422 && lowerMessage.includes('already registered')) ||
+        (errorName === 'AuthApiError' && errorStatus === 400 && lowerMessage.includes('user already exists')) // More specific check for some Supabase versions
        ) {
       errorMessage = 'Este e-mail já está registrado. Tente fazer login.';
       errorName = 'UserAlreadyExistsError';
-    } else if (error instanceof AuthError && error.message.toLowerCase().includes('rate limit exceeded')) {
+    } else if (lowerMessage.includes('rate limit exceeded')) {
         errorMessage = 'Limite de tentativas excedido. Por favor, tente novamente mais tarde.';
         errorName = 'RateLimitError';
+    } else {
+      // Keep original error name if not one of the above special cases
+      errorName = error.name;
     }
 
-    return { error: { message: errorMessage, name: errorName, status: error.status }, data: null };
+    return { error: { message: errorMessage, name: errorName, status: errorStatus }, data: null };
   }
 
   if (data.user && data.session === null) {
@@ -93,7 +109,7 @@ export async function signUpUser(credentials: UserCredentials): Promise<AuthResp
 
 
 export async function signInUser(credentials: UserCredentials): Promise<AuthResponse> {
-  const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
+  const supabase = createSupabaseServerClient();
   console.log('[AuthActions] Attempting to sign in user:', credentials.email);
   const { data, error } = await supabase.auth.signInWithPassword({
     email: credentials.email,
@@ -101,18 +117,27 @@ export async function signInUser(credentials: UserCredentials): Promise<AuthResp
   });
 
   if (error) {
-    if (error instanceof AuthError) {
-      console.error('[AuthActions] Supabase Auth SignIn Error:', error.message, error.status);
-      let friendlyMessage = error.message;
-      if (error.message.toLowerCase().includes('invalid login credentials')) {
-        friendlyMessage = 'Credenciais de login inválidas. Verifique seu e-mail e senha.';
-      } else if (error.message.toLowerCase().includes('email not confirmed')) {
-        friendlyMessage = 'Seu e-mail ainda não foi confirmado. Por favor, verifique sua caixa de entrada e spam pelo link de confirmação.';
-      }
-      return { error: { message: friendlyMessage, status: error.status }, data: null };
+    console.error('[AuthActions] Supabase Auth SignIn Raw Error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    let friendlyMessage = 'Falha no login. Verifique suas credenciais ou tente novamente mais tarde.';
+    let errorName: string | undefined = error.name;
+    let errorStatus: number | undefined = undefined;
+
+    if (typeof error === 'object' && error !== null) {
+        const lowerMessage = String((error as any).message).toLowerCase();
+        errorStatus = (error as any).status; // Common place for HTTP status
+
+        if (lowerMessage.includes('invalid login credentials')) {
+            friendlyMessage = 'Credenciais de login inválidas. Verifique seu e-mail e senha.';
+        } else if (lowerMessage.includes('email not confirmed')) {
+            friendlyMessage = 'Seu e-mail ainda não foi confirmado. Por favor, verifique sua caixa de entrada e spam pelo link de confirmação.';
+        } else {
+            // For other errors, use the message from Supabase if available, but keep it understandable
+            friendlyMessage = (error as any).message || friendlyMessage;
+        }
+        errorName = (error as any).name || errorName;
     }
-    console.error('[AuthActions] Unknown error during sign in:', error);
-    return { error: { message: 'Ocorreu um erro desconhecido durante o login.' }, data: null };
+    
+    return { error: { message: friendlyMessage, name: errorName, status: errorStatus }, data: null };
   }
 
   console.log('[AuthActions] Sign in successful. User:', data.user?.id, 'Session:', data.session !== null);
@@ -120,16 +145,15 @@ export async function signInUser(credentials: UserCredentials): Promise<AuthResp
 }
 
 export async function signOutUser() {
-  const supabase = createSupabaseServerClient(); // Não passa mais cookieStore
-  console.log('[AuthActions] Attempting to sign out user...');
+  const supabase = createSupabaseServerClient();
+  console.log('[AuthActions] Attempting to sign out user (server action)...');
   const { error } = await supabase.auth.signOut();
 
   if (error) {
-    console.error('[AuthActions] Supabase Auth SignOut Error:', error);
+    console.error('[AuthActions] Supabase Auth SignOut Error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
   } else {
-    console.log('[AuthActions] User signed out successfully from Supabase backend.');
+    console.log('[AuthActions] User signed out successfully from Supabase backend via server action.');
   }
-  // Para Server Actions, é recomendado usar redirect ao invés de router.push
-  // router.refresh() será chamado no cliente pela Navbar no onAuthStateChange
   redirect('/'); 
 }
+

@@ -52,7 +52,9 @@ export function Navbar() {
         if (sessionError) {
           console.error('[Navbar] Error getting session:', sessionError.message);
         }
-        console.log('[Navbar] useEffect/getSession: Session fetched. User:', session?.user?.email ?? 'No user in session');
+        console.log('[Navbar] useEffect/getSession: Session fetched. User in session:', session?.user?.email ?? 'No user in session');
+        console.log('[Navbar] Full user object from getSession:', JSON.stringify(session?.user, null, 2));
+        console.log('[Navbar] User metadata from getSession:', JSON.stringify(session?.user?.user_metadata, null, 2));
         setUser(session?.user ?? null);
       } catch (e) {
         console.error('[Navbar] Exception during getSession:', e);
@@ -66,6 +68,8 @@ export function Navbar() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[Navbar] onAuthStateChange event:', event, 'User in session:', session?.user?.email ?? 'No user');
+      console.log('[Navbar] Full user object from onAuthStateChange:', JSON.stringify(session?.user, null, 2));
+      console.log('[Navbar] User metadata from onAuthStateChange:', JSON.stringify(session?.user?.user_metadata, null, 2));
       setUser(session?.user ?? null);
       setIsLoading(false); 
 
@@ -76,7 +80,7 @@ export function Navbar() {
       }
       if (event === 'SIGNED_OUT') {
         console.log('[Navbar] SIGNED_OUT event detected. Refreshing router.');
-        router.push('/'); // Redirect to home on sign out for better UX
+        router.push('/'); 
         router.refresh();
       }
     });
@@ -247,5 +251,4 @@ export function Navbar() {
     </header>
   );
 }
-
     

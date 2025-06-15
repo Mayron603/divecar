@@ -43,7 +43,7 @@ export function Navbar() {
   const supabase = createSupabaseBrowserClient();
 
   useEffect(() => {
-    console.log('[Navbar] useEffect: V_RELOAD_FIX Initializing session check and auth listener.');
+    console.log('[Navbar] useEffect: V_RELOAD_FIX_HANDLE_SIGNOUT Initializing session check and auth listener.');
     const getSession = async () => {
       setIsLoading(true);
       console.log('[Navbar] useEffect/getSession: Attempting to get session.');
@@ -69,11 +69,11 @@ export function Navbar() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null;
-      console.log(`[Navbar] onAuthStateChange V_RELOAD_FIX event: ${event}. Current user email: ${currentUser?.email ?? 'No user'}.`);
+      console.log(`[Navbar] onAuthStateChange V_RELOAD_FIX_HANDLE_SIGNOUT event: ${event}. Current user email: ${currentUser?.email ?? 'No user'}.`);
       console.log('[Navbar] Full user object from onAuthStateChange:', JSON.stringify(currentUser, null, 2));
       console.log('[Navbar] User metadata from onAuthStateChange:', JSON.stringify(currentUser?.user_metadata, null, 2));
       
-      setUser(currentUser); // Update user state for all events
+      setUser(currentUser); 
       setIsLoading(false); 
 
       if (event === 'SIGNED_IN' && (pathname === '/login' || pathname === '/register')) {
@@ -81,10 +81,12 @@ export function Navbar() {
         router.push('/');
         router.refresh(); 
       }
+      // A lógica de SIGNED_OUT será tratada principalmente pelo handleSignOut agora,
+      // mas manter setUser(null) aqui é bom para consistência caso o evento seja disparado por outros meios.
       if (event === 'SIGNED_OUT') {
-        console.log('[Navbar] SIGNED_OUT event detected. Setting user to null and reloading page.');
-        setUser(null); 
-        window.location.reload(); // Force a full page reload to clear state
+        console.log('[Navbar] SIGNED_OUT event detected by onAuthStateChange. Setting user to null.');
+        setUser(null);
+        // Não recarregaremos a página aqui para evitar múltiplos recarregamentos se handleSignOut já o fizer.
       }
     });
 
@@ -93,6 +95,22 @@ export function Navbar() {
       authListener?.subscription.unsubscribe();
     };
   }, [supabase, router, pathname]);
+
+  const handleSignOut = async () => {
+    console.log('[Navbar] handleSignOut: Iniciando processo de logout no cliente.');
+    setIsLoading(true); // Feedback visual opcional
+    try {
+      await signOutUser(); // Chama a Server Action, que agora não redireciona.
+      console.log('[Navbar] handleSignOut: signOutUser (Server Action) completou. Forçando navegação para /.');
+      window.location.href = '/'; // Força a navegação e recarregamento da página.
+    } catch (error) {
+      console.error('[Navbar] handleSignOut: Erro durante o processo de logout:', error);
+      setIsLoading(false); // Remove o loading se houver erro
+      // Adicionar um toast de erro aqui seria uma boa prática
+    }
+    // Não precisa de setIsLoading(false) se window.location.href for bem-sucedido, pois a página recarrega.
+  };
+
 
   const avatarUrl = user?.user_metadata?.avatar_url;
   const userEmail = user?.email;
@@ -141,17 +159,12 @@ export function Navbar() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <form action={async () => {
-            await signOutUser();
-            // The onAuthStateChange listener will handle the UI update and reload
-          }} className="w-full">
-            <DropdownMenuItem asChild>
-               <Button type="submit" variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2">
-                <LogOut className="mr-2 h-4 w-4" />
-                Sair
-              </Button>
-            </DropdownMenuItem>
-          </form>
+          <DropdownMenuItem asChild>
+             <Button onClick={handleSignOut} variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
+            </Button>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     );
@@ -228,17 +241,12 @@ export function Navbar() {
                           </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator className="bg-primary-foreground/20" />
-                        <form action={async () => {
-                            await signOutUser();
-                            // The onAuthStateChange listener will handle the UI update and reload
-                        }} className="w-full">
-                          <DropdownMenuItem asChild>
-                             <Button type="submit" variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2 text-primary-foreground hover:bg-primary/90 hover:text-accent">
+                         <DropdownMenuItem asChild>
+                            <Button onClick={handleSignOut} variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2 text-primary-foreground hover:bg-primary/90 hover:text-accent">
                               <LogOut className="mr-2 h-4 w-4" />
                               Sair
                             </Button>
                           </DropdownMenuItem>
-                        </form>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </>

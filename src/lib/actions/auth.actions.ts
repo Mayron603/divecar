@@ -268,6 +268,6 @@ export async function signOutUser() {
   } else {
     console.log('[AuthActions] signOutUser: Usuário deslogado com sucesso do backend Supabase via server action.');
   }
-  redirect('/');
+  // Removido: redirect('/'); // O redirecionamento será tratado pelo cliente
 }
     

@@ -24,17 +24,17 @@ import { useToast } from '@/hooks/use-toast';
 
 
 const baseNavItems = [
-  { href: '/', label: 'Início', icon: <Home className="h-5 w-5" /> },
-  { href: '/hierarchy', label: 'Hierarquia', icon: <Users className="h-5 w-5" /> },
-  { href: '/history', label: 'História', icon: <ScrollText className="h-5 w-5" /> },
-  { href: '/about', label: 'Sobre Nós', icon: <Info className="h-5 w-5" /> },
-  { href: '/investigations', label: 'Investigações', icon: <FolderSearch className="h-5 w-5" /> },
-  { href: '/suspicious-vehicles', label: 'Veíc. Suspeitos', icon: <AlertTriangle className="h-5 w-5" /> },
+  { href: '/', label: 'Início', icon: Home },
+  { href: '/hierarchy', label: 'Hierarquia', icon: Users },
+  { href: '/history', label: 'História', icon: ScrollText },
+  { href: '/about', label: 'Sobre Nós', icon: Info },
+  { href: '/investigations', label: 'Investigações', icon: FolderSearch },
+  { href: '/suspicious-vehicles', label: 'Veíc. Suspeitos', icon: AlertTriangle },
 ];
 
 const unauthenticatedNavItems = [
-  { href: '/login', label: 'Login', icon: <LogIn className="h-5 w-5" /> },
-  { href: '/register', label: 'Registrar', icon: <UserPlus className="h-5 w-5" /> },
+  { href: '/login', label: 'Login', icon: LogIn },
+  { href: '/register', label: 'Registrar', icon: UserPlus },
 ];
 
 export function Navbar() {
@@ -46,7 +46,7 @@ export function Navbar() {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('[Navbar] useEffect: V_RELOAD_FIX_HANDLE_SIGNOUT Initializing session check and auth listener.');
+    console.log('[Navbar] useEffect: V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD Initializing session check and auth listener.');
     const getSession = async () => {
       setIsLoading(true);
       console.log('[Navbar] useEffect/getSession: Attempting to get session.');
@@ -72,7 +72,7 @@ export function Navbar() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null;
-      console.log(`[Navbar] onAuthStateChange V_RELOAD_FIX_HANDLE_SIGNOUT event: ${event}. Current user email: ${currentUser?.email ?? 'No user'}.`);
+      console.log(`[Navbar] onAuthStateChange V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD event: ${event}. Current user email: ${currentUser?.email ?? 'No user'}.`);
       console.log('[Navbar] Full user object from onAuthStateChange:', JSON.stringify(currentUser, null, 2));
       console.log('[Navbar] User metadata from onAuthStateChange:', JSON.stringify(currentUser?.user_metadata, null, 2));
       
@@ -82,21 +82,19 @@ export function Navbar() {
       if (event === 'SIGNED_IN' && (pathname === '/login' || pathname === '/register')) {
         console.log('[Navbar] SIGNED_IN event detected on login/register page, redirecting to /');
         router.push('/');
-        router.refresh(); 
       }
       
       if (event === 'SIGNED_OUT') {
-        console.log('[Navbar] SIGNED_OUT event detected by onAuthStateChange. Setting user to null.');
-        setUser(null);
-        // Não vamos forçar reload aqui para evitar conflito com o reload do handleSignOut.
-        // Apenas garantimos que o estado local é limpo.
-        // Se a página atual não for a home, router.refresh() pode ajudar a acionar
-        // a lógica de proteção de rota se houver.
-        if (pathname !== '/') {
-            // Se não estiver na home, pode ser útil redirecionar para a home ou login.
-            // router.push('/'); // Comentado para priorizar o reload no handleSignOut.
+        console.log('[Navbar] SIGNED_OUT event detected by onAuthStateChange. V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD. Calling handleSignOut logic.');
+        // This state should already be handled by the explicit handleSignOut function's reload.
+        // If an external event causes sign out (e.g. session expiry), this will catch it.
+        setUser(null); // Ensure local state is cleared
+        if (pathname !== '/login' && pathname !== '/register') {
+           // Only reload if not on auth pages to avoid reload loops if sign out fails.
+           window.location.reload();
+        } else {
+            router.push('/'); // Go to home if on auth pages during external sign out
         }
-        router.refresh();
       }
     });
 
@@ -108,17 +106,16 @@ export function Navbar() {
 
   const handleSignOut = async () => {
     console.log('[Navbar] handleSignOut: Iniciando processo de logout no cliente (FORCE_RELOAD_STRATEGY).');
-    setIsLoading(true); 
+    setIsLoading(true);
     try {
-      await signOutUser(); // Chama a Server Action, que agora não redireciona.
+      await signOutUser(); 
       console.log('[Navbar] handleSignOut: signOutUser (Server Action) completou.');
       setUser(null); // Define o estado do usuário local para null IMEDIATAMENTE
       console.log('[Navbar] handleSignOut: User state set to null locally.');
       
-      // Força um recarregamento completo da página atual.
       window.location.reload(); 
       console.log('[Navbar] handleSignOut: window.location.reload() called.');
-      // O código abaixo de window.location.reload() pode não ser executado se o reload for síncrono.
+      
     } catch (error) {
       console.error('[Navbar] handleSignOut: Erro durante o processo de logout:', error);
       toast({
@@ -133,19 +130,18 @@ export function Navbar() {
 
   const avatarUrl = user?.user_metadata?.avatar_url;
   const userEmail = user?.email;
-  const userNameOrInitial = userEmail ? (user?.user_metadata?.full_name || userEmail.charAt(0).toUpperCase()) : "U";
 
   const UserProfileDisplay = () => {
     if (isLoading) {
-      return <div className="h-8 w-32 bg-primary/50 animate-pulse rounded-md"></div>;
+      return <div className="h-10 w-32 bg-primary/50 animate-pulse rounded-md"></div>;
     }
     if (!user) {
       return (
         <>
           {unauthenticatedNavItems.map((item) => (
-            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 px-2 lg:px-3">
+            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 px-2 lg:px-3 group">
               <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                {item.icon}
+                <item.icon className="h-5 w-5 transition-colors duration-300 group-hover:text-accent" />
                 {item.label}
               </Link>
             </Button>
@@ -157,7 +153,7 @@ export function Navbar() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-primary/80">
+          <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-primary/80 transition-all duration-300 hover:scale-110">
             <Avatar className="h-9 w-9 border-2 border-accent">
               <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
               <AvatarFallback className="bg-primary text-accent text-lg">
@@ -178,32 +174,29 @@ export function Navbar() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-             <Button onClick={handleSignOut} variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2">
+          <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
               <LogOut className="mr-2 h-4 w-4" />
               Sair
-            </Button>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     );
   };
 
-
   return (
-    <header className="bg-primary text-primary-foreground shadow-md sticky top-0 z-50">
+    <header className="bg-gradient-to-b from-primary to-primary/80 text-primary-foreground shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
-        <Link href="/" className="flex items-center gap-3">
-          <Building className="h-10 w-10 text-accent" />
+        <Link href="/" className="flex items-center gap-3 group">
+          <Building className="h-10 w-10 text-accent transition-transform duration-300 group-hover:scale-110" />
           <span className="text-xl md:text-2xl font-headline font-semibold">DIVECAR Osasco</span>
         </Link>
 
         {/* Desktop Navbar */}
         <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
           {baseNavItems.map((item) => (
-            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 px-2 lg:px-3">
+            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 px-2 lg:px-3 group">
               <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                {item.icon}
+                <item.icon className="h-5 w-5 transition-colors duration-300 group-hover:text-accent" />
                 {item.label}
               </Link>
             </Button>
@@ -222,9 +215,9 @@ export function Navbar() {
             <SheetContent side="right" className="bg-primary text-primary-foreground p-6 w-[250px] sm:w-[300px]">
               <div className="flex flex-col space-y-3 mt-6">
                 {baseNavItems.map((item) => (
-                  <Button key={`mobile-base-${item.label}`} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 justify-start w-full text-left">
+                  <Button key={`mobile-base-${item.label}`} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 justify-start w-full text-left group">
                     <Link href={item.href} className="flex items-center gap-3 py-2.5 text-lg">
-                      {item.icon}
+                      <item.icon className="h-5 w-5 transition-colors duration-300 group-hover:text-accent" />
                       {item.label}
                     </Link>
                   </Button>
@@ -238,8 +231,8 @@ export function Navbar() {
                   <>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="justify-start w-full text-left flex items-center gap-3 py-2.5 text-lg h-auto px-3 hover:bg-primary/80">
-                           <Avatar className="h-8 w-8 border-2 border-accent">
+                        <Button variant="ghost" className="justify-start w-full text-left flex items-center gap-3 py-2.5 text-lg h-auto px-3 hover:bg-primary/80 hover:text-accent group">
+                           <Avatar className="h-8 w-8 border-2 border-accent transition-transform duration-300 group-hover:scale-105">
                             <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
                             <AvatarFallback className="bg-primary text-accent">
                                <UserCircle2 className="h-5 w-5" />
@@ -260,20 +253,18 @@ export function Navbar() {
                           </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator className="bg-primary-foreground/20" />
-                         <DropdownMenuItem asChild>
-                            <Button onClick={handleSignOut} variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2 text-primary-foreground hover:bg-primary/90 hover:text-accent">
+                         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-primary-foreground hover:!bg-primary/90 hover:!text-accent">
                               <LogOut className="mr-2 h-4 w-4" />
                               Sair
-                            </Button>
                           </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </>
                 ) : (
                   unauthenticatedNavItems.map((item) => (
-                    <Button key={`mobile-auth-${item.label}`} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 justify-start w-full text-left">
+                    <Button key={`mobile-auth-${item.label}`} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 justify-start w-full text-left group">
                       <Link href={item.href} className="flex items-center gap-3 py-2.5 text-lg">
-                        {item.icon}
+                        <item.icon className="h-5 w-5 transition-colors duration-300 group-hover:text-accent" />
                         {item.label}
                       </Link>
                     </Button>
@@ -287,6 +278,3 @@ export function Navbar() {
     </header>
   );
 }
-    
-
-    

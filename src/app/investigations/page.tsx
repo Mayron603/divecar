@@ -526,7 +526,7 @@ export default function InvestigationsPage() {
 
     if (isImage) {
       return (
-        <a href={url} target="_blank" rel="noopener noreferrer" className="block relative w-full h-32 overflow-hidden rounded group shadow">
+        <a href={url} target="_blank" rel="noopener noreferrer" className="block relative w-full h-32 overflow-hidden rounded-md group shadow">
           <NextImage src={url} alt="Mídia da investigação" layout="fill" objectFit="cover" className="transition-transform duration-300 group-hover:scale-105" />
            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 flex items-center justify-center transition-opacity duration-300">
             <ImageIcon className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -536,7 +536,7 @@ export default function InvestigationsPage() {
     }
     if (isVideo) {
       return (
-         <div className="relative group w-full h-32 rounded overflow-hidden shadow">
+         <div className="relative group w-full h-32 rounded-md overflow-hidden shadow">
           <video controls muted loop className="w-full h-full object-cover" preload="metadata" playsInline>
             <source src={url} type={`video/${url.split('.').pop()?.split('?')[0]}`} />
             Seu navegador não suporta a tag de vídeo.
@@ -565,7 +565,7 @@ export default function InvestigationsPage() {
     })();
 
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline break-all flex items-center p-2 bg-slate-50 rounded shadow-sm">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline break-all flex items-center p-2 bg-slate-50 rounded-md shadow-sm">
         <LinkIcon className="h-4 w-4 mr-1.5 shrink-0" /> {fileName.substring(0,30)}{fileName.length > 30 ? '...' : ''}
       </a>
     );
@@ -581,7 +581,7 @@ export default function InvestigationsPage() {
       />
 
       {!showForm && (
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-8 animate-fade-in-up" style={{animationDelay: '0.2s'}}>
           <Button
             onClick={() => {
               resetForm();
@@ -589,6 +589,7 @@ export default function InvestigationsPage() {
             }}
             size="lg"
             disabled={isLoading || isSubmitting || isUploading}
+            className="transition-transform hover:scale-105"
           >
             <PlusCircle className="mr-2 h-5 w-5" /> Nova Investigação
           </Button>
@@ -596,7 +597,7 @@ export default function InvestigationsPage() {
       )}
 
       {showForm && (
-        <Card className="max-w-2xl mx-auto shadow-xl">
+        <Card className="max-w-2xl mx-auto shadow-xl animate-fade-in-up rounded-lg">
           <CardHeader>
             <CardTitle>{editingInvestigation ? `Editando Investigação (R.O.: ${editingInvestigation.roNumber})` : 'Nova Investigação'}</CardTitle>
             <CardDescription>
@@ -667,7 +668,7 @@ export default function InvestigationsPage() {
               </div>
 
               <div>
-                <Label htmlFor="mediaFiles">Adicionar Mídias (Opcional)</Label>
+                <Label htmlFor="mediaFiles">Adicionar Mídias</Label>
                 <Input
                   id="mediaFiles"
                   type="file"
@@ -701,7 +702,7 @@ export default function InvestigationsPage() {
                   <Label>Mídias Existentes ({existingMediaUrls.length})</Label>
                   <div className="space-y-2 mt-1 border p-3 rounded-md bg-muted/20 max-h-60 overflow-y-auto">
                     {existingMediaUrls.map((url) => (
-                      <div key={url} className="flex items-center justify-between text-sm p-2 bg-card rounded shadow-sm hover:shadow-md transition-shadow">
+                      <div key={url} className="flex items-center justify-between text-sm p-2 bg-card rounded-md shadow-sm hover:shadow-md transition-shadow">
                         <div className="truncate max-w-[calc(100%-3rem)] flex-grow">
                            {renderMedia(url)}
                         </div>
@@ -753,7 +754,7 @@ export default function InvestigationsPage() {
       )}
 
       {!isLoading && investigations.length === 0 && !showForm && (
-         <Card className="text-center py-12 shadow-lg bg-card">
+         <Card className="text-center py-12 shadow-lg bg-card animate-fade-in-up rounded-lg" style={{animationDelay: '0.3s'}}>
           <CardContent className="flex flex-col items-center justify-center">
             <FolderSearch className="h-20 w-20 text-muted-foreground mb-6" />
             <p className="text-xl font-semibold text-muted-foreground">Nenhuma investigação registrada ainda.</p>
@@ -764,8 +765,12 @@ export default function InvestigationsPage() {
 
       {!isLoading && investigations.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
-          {investigations.map((inv) => (
-            <Card key={inv.id} className={`shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex flex-col border-l-4 ${statusColors[inv.status]?.split(' ')[2] ?? 'border-gray-300'} bg-card hover:-translate-y-1`}>
+          {investigations.map((inv, index) => (
+            <Card 
+              key={inv.id} 
+              className={`shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex flex-col border-l-4 ${statusColors[inv.status]?.split(' ')[2] ?? 'border-gray-300'} bg-card hover:-translate-y-1 animate-fade-in-up rounded-lg`}
+              style={{ animationDelay: `${0.2 + index * 0.05}s` }}
+            >
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-xl text-primary mb-1 line-clamp-2">{inv.title}</CardTitle>
@@ -798,8 +803,8 @@ export default function InvestigationsPage() {
                   <div className="pt-3 border-t mt-3">
                     <h4 className="text-sm font-semibold text-primary mb-2 flex items-center"><FileUp className="h-4 w-4 mr-1.5"/>Mídias Anexadas ({inv.mediaUrls.length}):</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
-                      {inv.mediaUrls.map((url, index) => (
-                        <div key={index} className="text-xs">
+                      {inv.mediaUrls.map((url, idx) => (
+                        <div key={idx} className="text-xs">
                           {renderMedia(url)}
                         </div>
                       ))}
@@ -813,14 +818,15 @@ export default function InvestigationsPage() {
                     size="sm" 
                     onClick={() => handleOpenCommentsDialog(inv)}
                     disabled={isSubmitting || isUploading}
+                    className="transition-transform hover:scale-105"
                 >
                   <MessageCircle className="mr-1.5 h-4 w-4" /> Comentários
                 </Button>
                 <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(inv)} disabled={isSubmitting || isUploading}>
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(inv)} disabled={isSubmitting || isUploading} className="transition-transform hover:scale-105">
                         <Edit3 className="mr-1.5 h-4 w-4" /> Editar
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => handleDeleteInvestigationClick(inv)} disabled={isSubmitting || isUploading}>
+                    <Button variant="destructive" size="sm" onClick={() => handleDeleteInvestigationClick(inv)} disabled={isSubmitting || isUploading} className="transition-transform hover:scale-105">
                         <Trash2 className="mr-1.5 h-4 w-4" /> Excluir
                     </Button>
                 </div>
@@ -917,7 +923,7 @@ export default function InvestigationsPage() {
                     required
                   />
                 </div>
-                <Button type="submit" disabled={isSubmittingComment || !newCommentAuthor.trim() || !newCommentContent.trim()} className="w-full">
+                <Button type="submit" disabled={isSubmittingComment || !newCommentAuthor.trim() || !newCommentContent.trim()} className="w-full transition-transform hover:scale-105">
                   {isSubmittingComment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   <Send className="mr-2 h-4 w-4" /> Adicionar Comentário
                 </Button>
@@ -936,4 +942,3 @@ export default function InvestigationsPage() {
     </div>
   );
 }
-

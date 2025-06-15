@@ -2,9 +2,9 @@
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LucideIcon } from 'lucide-react';
-import { ScrollText, Landmark, CalendarDays, SearchCheck } from 'lucide-react'; // ShieldAlert trocado por SearchCheck (Investigação Concluída)
+import { ScrollText, Landmark, CalendarDays, SearchCheck } from 'lucide-react';
 
-const AwardIcon = ({className}: {className?: string}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>; // Ícone de brasão/certificado mais genérico
+const AwardIcon = ({className}: {className?: string}) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>;
 
 interface HistoryEvent {
   year: string;
@@ -56,15 +56,15 @@ export default function HistoryPage() {
         icon={ScrollText}
       />
       <div className="relative max-w-3xl mx-auto">
-        <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-border rounded-full transform -translate-x-1/2 hidden md:block"></div>
+        <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-border rounded-full transform -translate-x-1/2 hidden md:block animate-fade-in-up" style={{ animationDelay: '0.2s' }}></div>
         {historyEvents.map((event, index) => (
-          <div key={index} className="mb-12 md:flex items-start md:gap-8 relative">
+          <div key={index} className="mb-12 md:flex items-start md:gap-8 relative animate-fade-in-up" style={{ animationDelay: `${0.3 + index * 0.15}s` }}>
             <div className="md:w-1/2 md:flex md:justify-end md:pr-8">
               {index % 2 === 0 && (
-                <Card className="shadow-xl w-full hover:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1">
+                <Card className="shadow-xl w-full hover:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 rounded-lg">
                   <CardHeader>
                     <div className="flex items-center gap-3">
-                      <event.icon className="h-8 w-8 text-accent" />
+                      <event.icon className="h-8 w-8 text-accent transition-transform duration-300 group-hover:scale-110" />
                       <div>
                         <CardTitle className="text-2xl text-primary">{event.title}</CardTitle>
                         <p className="text-sm text-muted-foreground font-semibold">{event.year}</p>
@@ -78,13 +78,13 @@ export default function HistoryPage() {
               )}
                {index % 2 !== 0 && <div className="hidden md:block h-1"></div>} {/* Spacer for alignment */}
             </div>
-             <div className="absolute left-1/2 top-1/2 w-4 h-4 bg-accent rounded-full border-4 border-card transform -translate-x-1/2 -translate-y-1/2 hidden md:block"></div>
+             <div className="absolute left-1/2 top-1/2 w-4 h-4 bg-accent rounded-full border-4 border-card transform -translate-x-1/2 -translate-y-1/2 hidden md:block transition-transform duration-300 group-hover:scale-110"></div>
             <div className="md:w-1/2 md:flex md:justify-start md:pl-8 mt-8 md:mt-0">
                {index % 2 !== 0 && (
-                <Card className="shadow-xl w-full hover:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1">
+                <Card className="shadow-xl w-full hover:shadow-2xl transition-all duration-300 ease-in-out hover:-translate-y-1 rounded-lg">
                   <CardHeader>
                     <div className="flex items-center gap-3">
-                      <event.icon className="h-8 w-8 text-accent" />
+                      <event.icon className="h-8 w-8 text-accent transition-transform duration-300 group-hover:scale-110" />
                        <div>
                         <CardTitle className="text-2xl text-primary">{event.title}</CardTitle>
                         <p className="text-sm text-muted-foreground font-semibold">{event.year}</p>

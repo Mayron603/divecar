@@ -38,10 +38,10 @@ export default function AboutPage() {
         icon={Info}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
         <div className="overflow-hidden rounded-lg shadow-xl">
           <NextImage
-            src="/videos/sobre_nos.png" // Assumindo que o arquivo está em public/videos/
+            src="/videos/sobre_nos.png" 
             alt="Informações sobre a DIVECAR Osasco"
             width={600} 
             height={400} 
@@ -61,10 +61,14 @@ export default function AboutPage() {
       </div>
 
       <div className="space-y-8 mt-16">
-        {aboutSections.map((section) => (
-          <Card key={section.title} className="shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out hover:-translate-y-1">
-            <CardHeader className="flex flex-row items-center space-x-4">
-              <div className="p-3 bg-accent rounded-full">
+        {aboutSections.map((section, index) => (
+          <Card 
+            key={section.title} 
+            className="shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out hover:-translate-y-1 animate-fade-in-up rounded-lg"
+            style={{ animationDelay: `${0.4 + index * 0.15}s` }}
+            >
+            <CardHeader className="flex flex-row items-center space-x-4 group">
+              <div className="p-3 bg-accent rounded-full transition-transform duration-300 group-hover:scale-110">
                 <section.icon className="h-7 w-7 text-accent-foreground" />
               </div>
               <CardTitle className="text-2xl text-primary">{section.title}</CardTitle>
@@ -76,7 +80,7 @@ export default function AboutPage() {
         ))}
       </div>
       
-      <section className="py-12 bg-card p-8 rounded-lg shadow-xl mt-16 transition-all duration-300 ease-in-out hover:shadow-2xl">
+      <section className="py-12 bg-card p-8 rounded-lg shadow-xl mt-16 transition-all duration-300 ease-in-out hover:shadow-2xl animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
         <div className="grid md:grid-cols-2 gap-8 items-center">
           <div>
             <h3 className="text-3xl font-headline font-semibold text-primary mb-4">Nosso Foco Investigativo</h3>

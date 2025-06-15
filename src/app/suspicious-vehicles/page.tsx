@@ -440,13 +440,13 @@ export default function SuspiciousVehiclesPage() {
 
 
   const renderMedia = (url: string | undefined) => {
-    if (!url) return <div className="flex items-center justify-center h-40 bg-muted rounded text-muted-foreground"><ImageIcon className="h-8 w-8" /> Sem foto</div>;
+    if (!url) return <div className="flex items-center justify-center h-40 bg-muted rounded-md text-muted-foreground"><ImageIcon className="h-8 w-8" /> Sem foto</div>;
     
     const isImage = /\.(jpeg|jpg|gif|png|webp)(\?|$)/i.test(url);
 
     if (isImage) {
       return (
-        <a href={url} target="_blank" rel="noopener noreferrer" className="block relative w-full h-40 overflow-hidden rounded group shadow">
+        <a href={url} target="_blank" rel="noopener noreferrer" className="block relative w-full h-40 overflow-hidden rounded-md group shadow">
           <NextImage src={url} alt="Foto do veículo suspeito" layout="fill" objectFit="cover" className="transition-transform duration-300 group-hover:scale-105" data-ai-hint="vehicle car" />
            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 flex items-center justify-center transition-opacity duration-300">
             <ImageIcon className="h-10 w-10 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -455,7 +455,7 @@ export default function SuspiciousVehiclesPage() {
       );
     }
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline break-all flex items-center p-2 bg-slate-50 rounded shadow-sm">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline break-all flex items-center p-2 bg-slate-50 rounded-md shadow-sm">
         <LinkIcon className="h-4 w-4 mr-1.5 shrink-0" /> Ver Arquivo
       </a>
     );
@@ -471,7 +471,7 @@ export default function SuspiciousVehiclesPage() {
       />
 
       {!showForm && (
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-8 animate-fade-in-up" style={{animationDelay: '0.2s'}}>
           <Button
             onClick={() => {
               resetForm();
@@ -479,6 +479,7 @@ export default function SuspiciousVehiclesPage() {
             }}
             size="lg"
             disabled={isLoading || isSubmitting || isUploading}
+            className="transition-transform hover:scale-105"
           >
             <PlusCircle className="mr-2 h-5 w-5" /> Registrar Veículo Suspeito
           </Button>
@@ -486,7 +487,7 @@ export default function SuspiciousVehiclesPage() {
       )}
 
       {showForm && (
-        <Card className="max-w-2xl mx-auto shadow-xl">
+        <Card className="max-w-2xl mx-auto shadow-xl animate-fade-in-up rounded-lg">
           <CardHeader>
             <CardTitle>{editingVehicle ? `Editando Veículo Suspeito` : 'Novo Veículo Suspeito'}</CardTitle>
             <CardDescription>
@@ -551,7 +552,7 @@ export default function SuspiciousVehiclesPage() {
               </div>
 
               <div>
-                <Label htmlFor="vehiclePhoto">Foto do Veículo (Opcional)</Label>
+                <Label htmlFor="vehiclePhoto">Foto do Veículo</Label>
                 <Input
                   id="vehiclePhoto"
                   type="file"
@@ -625,7 +626,7 @@ export default function SuspiciousVehiclesPage() {
       )}
 
       {!isLoading && suspiciousVehicles.length === 0 && !showForm && (
-         <Card className="text-center py-12 shadow-lg bg-card">
+         <Card className="text-center py-12 shadow-lg bg-card animate-fade-in-up rounded-lg" style={{animationDelay: '0.3s'}}>
           <CardContent className="flex flex-col items-center justify-center">
             <Car className="h-20 w-20 text-muted-foreground mb-6 opacity-50" />
             <p className="text-xl font-semibold text-muted-foreground">Nenhum veículo suspeito registrado.</p>
@@ -636,8 +637,12 @@ export default function SuspiciousVehiclesPage() {
 
       {!isLoading && suspiciousVehicles.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
-          {suspiciousVehicles.map((v) => (
-            <Card key={v.id} className="shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex flex-col bg-card hover:-translate-y-1">
+          {suspiciousVehicles.map((v, index) => (
+            <Card 
+              key={v.id} 
+              className="shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex flex-col bg-card hover:-translate-y-1 animate-fade-in-up rounded-lg"
+              style={{ animationDelay: `${0.2 + index * 0.05}s` }}
+            >
               <CardHeader className="pb-3">
                 <CardTitle className="text-xl text-primary mb-1 line-clamp-2">{v.vehicleModel}</CardTitle>
                 <p className="text-lg text-secondary font-semibold">{v.licensePlate}</p>
@@ -673,10 +678,10 @@ export default function SuspiciousVehiclesPage() {
                 )}
               </CardContent>
               <CardFooter className="flex flex-wrap justify-end items-center gap-x-2 gap-y-2 border-t pt-4 mt-auto">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(v)} disabled={isSubmitting || isUploading}>
+                <Button variant="outline" size="sm" onClick={() => handleEdit(v)} disabled={isSubmitting || isUploading} className="transition-transform hover:scale-105">
                     <Edit3 className="mr-1.5 h-4 w-4" /> Editar
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDeleteVehicleClick(v)} disabled={isSubmitting || isUploading}>
+                <Button variant="destructive" size="sm" onClick={() => handleDeleteVehicleClick(v)} disabled={isSubmitting || isUploading} className="transition-transform hover:scale-105">
                     <Trash2 className="mr-1.5 h-4 w-4" /> Excluir
                 </Button>
               </CardFooter>
@@ -715,4 +720,3 @@ export default function SuspiciousVehiclesPage() {
     </div>
   );
 }
-

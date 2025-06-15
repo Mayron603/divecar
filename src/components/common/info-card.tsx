@@ -11,13 +11,17 @@ interface InfoCardProps {
   href: string;
   icon: LucideIcon;
   linkText?: string;
+  animationDelay?: string;
 }
 
-export function InfoCard({ title, description, href, icon: Icon, linkText = "Saiba Mais" }: InfoCardProps) {
+export function InfoCard({ title, description, href, icon: Icon, linkText = "Saiba Mais", animationDelay }: InfoCardProps) {
   return (
-    <Card className="shadow-lg hover:shadow-2xl transition-all duration-300 ease-in-out flex flex-col h-full group hover:-translate-y-1">
+    <Card 
+      className="shadow-lg hover:shadow-2xl transition-all duration-300 ease-in-out flex flex-col h-full group hover:-translate-y-1 animate-fade-in-up rounded-lg"
+      style={animationDelay ? { animationDelay } : {}}
+    >
       <CardHeader className="flex flex-row items-center gap-4 pb-4">
-        <div className="bg-accent p-3 rounded-full">
+        <div className="bg-accent p-3 rounded-full transition-transform duration-300 group-hover:scale-110">
           <Icon className="h-6 w-6 text-accent-foreground" />
         </div>
         <CardTitle className="text-xl font-semibold text-primary">{title}</CardTitle>

@@ -71,7 +71,7 @@ export function Navbar() {
       console.log('[Navbar] Full user object from onAuthStateChange:', JSON.stringify(session?.user, null, 2));
       console.log('[Navbar] User metadata from onAuthStateChange:', JSON.stringify(session?.user?.user_metadata, null, 2));
       
-      setUser(session?.user ?? null); // Atualiza o estado do usuário
+      setUser(session?.user ?? null);
       setIsLoading(false); 
 
       if (event === 'SIGNED_IN' && (pathname === '/login' || pathname === '/register')) {
@@ -80,10 +80,10 @@ export function Navbar() {
         router.refresh(); 
       }
       if (event === 'SIGNED_OUT') {
-        console.log('[Navbar] SIGNED_OUT event detected. Refreshing router and redirecting to /.');
-        // O setUser(null) já acontece devido a session ser null no evento SIGNED_OUT
-        router.push('/'); // Garante redirecionamento para a home
-        router.refresh(); // Crucial para forçar a atualização da UI
+        console.log('[Navbar] SIGNED_OUT event detected. User state updated. Forcing router refresh and navigating to home.');
+        // setUser(null) is handled by setUser(session?.user ?? null) at the top of the listener
+        router.push('/'); 
+        router.refresh(); 
       }
     });
 
@@ -123,7 +123,8 @@ export function Navbar() {
             <Avatar className="h-9 w-9 border-2 border-accent">
               <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
               <AvatarFallback className="bg-primary text-accent text-lg">
-                {avatarUrl ? null : <UserCircle2 className="h-6 w-6" />}
+                {/* Fallback to UserCircle2 if avatarUrl is not available, instead of initial. */}
+                <UserCircle2 className="h-6 w-6" />
               </AvatarFallback>
             </Avatar>
           </Button>
@@ -206,7 +207,7 @@ export function Navbar() {
                            <Avatar className="h-8 w-8 border-2 border-accent">
                             <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
                             <AvatarFallback className="bg-primary text-accent">
-                               {avatarUrl ? null : <UserCircle2 className="h-5 w-5" />}
+                               <UserCircle2 className="h-5 w-5" />
                             </AvatarFallback>
                           </Avatar>
                           <span className="truncate">{user?.user_metadata?.full_name || userEmail || 'Perfil'}</span>

@@ -20,6 +20,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
+
 
 const baseNavItems = [
   { href: '/', label: 'Início', icon: <Home className="h-5 w-5" /> },
@@ -41,6 +43,7 @@ export function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const supabase = createSupabaseBrowserClient();
+  const { toast } = useToast();
 
   useEffect(() => {
     console.log('[Navbar] useEffect: V_RELOAD_FIX_HANDLE_SIGNOUT Initializing session check and auth listener.');
@@ -81,12 +84,19 @@ export function Navbar() {
         router.push('/');
         router.refresh(); 
       }
-      // A lógica de SIGNED_OUT será tratada principalmente pelo handleSignOut agora,
-      // mas manter setUser(null) aqui é bom para consistência caso o evento seja disparado por outros meios.
+      
       if (event === 'SIGNED_OUT') {
         console.log('[Navbar] SIGNED_OUT event detected by onAuthStateChange. Setting user to null.');
         setUser(null);
-        // Não recarregaremos a página aqui para evitar múltiplos recarregamentos se handleSignOut já o fizer.
+        // Não vamos forçar reload aqui para evitar conflito com o reload do handleSignOut.
+        // Apenas garantimos que o estado local é limpo.
+        // Se a página atual não for a home, router.refresh() pode ajudar a acionar
+        // a lógica de proteção de rota se houver.
+        if (pathname !== '/') {
+            // Se não estiver na home, pode ser útil redirecionar para a home ou login.
+            // router.push('/'); // Comentado para priorizar o reload no handleSignOut.
+        }
+        router.refresh();
       }
     });
 
@@ -97,18 +107,27 @@ export function Navbar() {
   }, [supabase, router, pathname]);
 
   const handleSignOut = async () => {
-    console.log('[Navbar] handleSignOut: Iniciando processo de logout no cliente.');
-    setIsLoading(true); // Feedback visual opcional
+    console.log('[Navbar] handleSignOut: Iniciando processo de logout no cliente (FORCE_RELOAD_STRATEGY).');
+    setIsLoading(true); 
     try {
       await signOutUser(); // Chama a Server Action, que agora não redireciona.
-      console.log('[Navbar] handleSignOut: signOutUser (Server Action) completou. Forçando navegação para /.');
-      window.location.href = '/'; // Força a navegação e recarregamento da página.
+      console.log('[Navbar] handleSignOut: signOutUser (Server Action) completou.');
+      setUser(null); // Define o estado do usuário local para null IMEDIATAMENTE
+      console.log('[Navbar] handleSignOut: User state set to null locally.');
+      
+      // Força um recarregamento completo da página atual.
+      window.location.reload(); 
+      console.log('[Navbar] handleSignOut: window.location.reload() called.');
+      // O código abaixo de window.location.reload() pode não ser executado se o reload for síncrono.
     } catch (error) {
       console.error('[Navbar] handleSignOut: Erro durante o processo de logout:', error);
-      setIsLoading(false); // Remove o loading se houver erro
-      // Adicionar um toast de erro aqui seria uma boa prática
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao Sair',
+        description: 'Não foi possível completar o logout. Tente novamente.',
+      });
+      setIsLoading(false); 
     }
-    // Não precisa de setIsLoading(false) se window.location.href for bem-sucedido, pois a página recarrega.
   };
 
 

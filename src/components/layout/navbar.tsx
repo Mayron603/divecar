@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { ThemeToggle } from '@/components/common/theme-toggle'; // Importe o ThemeToggle
+import { ThemeToggle } from '@/components/common/theme-toggle';
 
 const baseNavItems = [
   { href: '/', label: 'Início', icon: Home },
@@ -57,8 +57,6 @@ export function Navbar() {
         }
         const initialUser = session?.user ?? null;
         console.log('[Navbar] useEffect/getSession: Session fetched. User in session:', initialUser?.email ?? 'No user in session');
-        console.log('[Navbar] Full user object from getSession (initial):', JSON.stringify(initialUser, null, 2));
-        console.log('[Navbar] User metadata from getSession (initial):', JSON.stringify(initialUser?.user_metadata, null, 2));
         setUser(initialUser);
       } catch (e) {
         console.error('[Navbar] Exception during getSession:', e);
@@ -73,8 +71,6 @@ export function Navbar() {
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null;
       console.log(`[Navbar] onAuthStateChange V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD event: ${event}. Current user email: ${currentUser?.email ?? 'No user'}.`);
-      console.log('[Navbar] Full user object from onAuthStateChange:', JSON.stringify(currentUser, null, 2));
-      console.log('[Navbar] User metadata from onAuthStateChange:', JSON.stringify(currentUser?.user_metadata, null, 2));
       
       setUser(currentUser); 
       setIsLoading(false); 
@@ -103,10 +99,8 @@ export function Navbar() {
     try {
       await signOutUser();
       console.log('[Navbar] handleSignOut: signOutUser (Server Action) completou.');
-      // O listener onAuthStateChange deve tratar a atualização do estado e o reload.
-      // A linha abaixo é uma garantia se o listener demorar ou falhar.
       setUser(null); // Define o estado local imediatamente
-      window.location.reload(); // Força o recarregamento
+      window.location.reload(); // Força o recarregamento da página atual
     } catch (error) {
       console.error('[Navbar] handleSignOut: Erro durante o processo de logout:', error);
       toast({
@@ -114,7 +108,7 @@ export function Navbar() {
         title: 'Erro ao Sair',
         description: 'Não foi possível completar o logout. Tente novamente.',
       });
-      setIsLoading(false);
+      setIsLoading(false); // Apenas em caso de erro, senão o reload assume
     }
   };
 
@@ -124,15 +118,15 @@ export function Navbar() {
 
   const UserProfileDisplay = () => {
     if (isLoading) {
-      return <div className="h-10 w-32 bg-primary/50 animate-pulse rounded-md"></div>;
+      return <div className="h-10 w-32 bg-muted/50 animate-pulse rounded-md"></div>;
     }
     if (!user) {
       return (
         <>
           {unauthenticatedNavItems.map((item) => (
-            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 px-2 lg:px-3 group">
+            <Button key={item.label} variant="ghost" asChild className="text-foreground hover:bg-accent/10 hover:text-primary transition-colors duration-300 px-2 lg:px-3 group">
               <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                <item.icon className="h-5 w-5 transition-colors duration-300 group-hover:text-accent" />
+                <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                 {item.label}
               </Link>
             </Button>
@@ -144,7 +138,7 @@ export function Navbar() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-primary/80 transition-all duration-300 hover:scale-110">
+          <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-accent/10 transition-all duration-300 hover:scale-110">
             <Avatar className="h-9 w-9 border-2 border-accent">
               <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
               <AvatarFallback className="bg-primary text-accent text-lg">
@@ -156,7 +150,7 @@ export function Navbar() {
         <DropdownMenuContent className="w-56" align="end" forceMount>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">
+              <p className="text-sm font-medium leading-none text-foreground">
                 {user?.user_metadata?.full_name || 'Usuário'}
               </p>
               <p className="text-xs leading-none text-muted-foreground">
@@ -165,7 +159,7 @@ export function Navbar() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+          <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive hover:!text-destructive hover:!bg-destructive/10">
               <LogOut className="mr-2 h-4 w-4" />
               Sair
           </DropdownMenuItem>
@@ -175,56 +169,56 @@ export function Navbar() {
   };
 
   return (
-    <header className="bg-gradient-to-b from-primary to-primary/80 text-primary-foreground shadow-md sticky top-0 z-50">
+    <header className="bg-card text-foreground shadow-md sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
         <Link href="/" className="flex items-center gap-3 group">
-          <Building className="h-10 w-10 text-accent transition-transform duration-300 group-hover:scale-110" />
-          <span className="text-xl md:text-2xl font-headline font-semibold">DIVECAR Osasco</span>
+          <Building className="h-10 w-10 text-primary transition-transform duration-300 group-hover:scale-110" />
+          <span className="text-xl md:text-2xl font-headline font-semibold text-primary">DIVECAR Osasco</span>
         </Link>
 
         {/* Desktop Navbar */}
         <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
           {baseNavItems.map((item) => (
-            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 px-2 lg:px-3 group">
+            <Button key={item.label} variant="ghost" asChild className="text-foreground hover:bg-accent/10 hover:text-primary transition-colors duration-300 px-2 lg:px-3 group">
               <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                <item.icon className="h-5 w-5 transition-colors duration-300 group-hover:text-accent" />
+                <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                 {item.label}
               </Link>
             </Button>
           ))}
           <UserProfileDisplay />
-          <ThemeToggle /> {/* Botão de Tema Adicionado Aqui */}
+          <ThemeToggle />
         </nav>
 
         {/* Mobile Navbar Trigger */}
         <div className="md:hidden flex items-center gap-2">
-          <ThemeToggle /> {/* Botão de Tema Adicionado Aqui para Mobile */}
+          <ThemeToggle /> 
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-primary-foreground hover:text-accent">
+              <Button variant="ghost" size="icon" className="text-foreground hover:text-primary">
                 <Menu className="h-7 w-7" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="bg-primary text-primary-foreground p-6 w-[250px] sm:w-[300px]">
+            <SheetContent side="right" className="bg-card text-foreground p-6 w-[250px] sm:w-[300px]">
               <div className="flex flex-col space-y-3 mt-6">
                 {baseNavItems.map((item) => (
-                  <Button key={`mobile-base-${item.label}`} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 justify-start w-full text-left group">
+                  <Button key={`mobile-base-${item.label}`} variant="ghost" asChild className="text-foreground hover:bg-accent/10 hover:text-primary transition-colors duration-300 justify-start w-full text-left group">
                     <Link href={item.href} className="flex items-center gap-3 py-2.5 text-lg">
-                      <item.icon className="h-5 w-5 transition-colors duration-300 group-hover:text-accent" />
+                      <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                       {item.label}
                     </Link>
                   </Button>
                 ))}
 
-                <hr className="border-primary-foreground/20 my-2" />
+                <hr className="border-border my-2" />
 
                 {isLoading ? (
-                   <div className="h-12 w-full bg-primary/50 animate-pulse rounded-md mt-2"></div>
+                   <div className="h-12 w-full bg-muted/50 animate-pulse rounded-md mt-2"></div>
                 ) : user ? (
                   <>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="justify-start w-full text-left flex items-center gap-3 py-2.5 text-lg h-auto px-3 hover:bg-primary/80 hover:text-accent group">
+                        <Button variant="ghost" className="justify-start w-full text-left flex items-center gap-3 py-2.5 text-lg h-auto px-3 hover:bg-accent/10 hover:text-primary group">
                            <Avatar className="h-8 w-8 border-2 border-accent transition-transform duration-300 group-hover:scale-105">
                             <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
                             <AvatarFallback className="bg-primary text-accent">
@@ -234,19 +228,19 @@ export function Navbar() {
                           <span className="truncate">{user?.user_metadata?.full_name || userEmail || 'Perfil'}</span>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-56 bg-primary border-primary-foreground/20 text-primary-foreground" align="end" sideOffset={10}>
+                      <DropdownMenuContent className="w-56 bg-popover border-border text-popover-foreground" align="end" sideOffset={10}>
                         <DropdownMenuLabel className="font-normal">
                           <div className="flex flex-col space-y-1">
-                            <p className="text-sm font-medium leading-none">
+                            <p className="text-sm font-medium leading-none text-foreground">
                               {user?.user_metadata?.full_name || 'Usuário'}
                             </p>
-                            <p className="text-xs leading-none text-primary-foreground/80">
+                            <p className="text-xs leading-none text-muted-foreground">
                               {userEmail}
                             </p>
                           </div>
                         </DropdownMenuLabel>
-                        <DropdownMenuSeparator className="bg-primary-foreground/20" />
-                         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-primary-foreground hover:!bg-primary/90 hover:!text-accent">
+                        <DropdownMenuSeparator className="bg-border" />
+                         <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive hover:!text-destructive hover:!bg-destructive/10">
                               <LogOut className="mr-2 h-4 w-4" />
                               Sair
                           </DropdownMenuItem>
@@ -255,9 +249,9 @@ export function Navbar() {
                   </>
                 ) : (
                   unauthenticatedNavItems.map((item) => (
-                    <Button key={`mobile-auth-${item.label}`} variant="ghost" asChild className="text-primary-foreground hover:bg-primary/80 hover:text-accent transition-colors duration-300 justify-start w-full text-left group">
+                    <Button key={`mobile-auth-${item.label}`} variant="ghost" asChild className="text-foreground hover:bg-accent/10 hover:text-primary transition-colors duration-300 justify-start w-full text-left group">
                       <Link href={item.href} className="flex items-center gap-3 py-2.5 text-lg">
-                        <item.icon className="h-5 w-5 transition-colors duration-300 group-hover:text-accent" />
+                        <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                         {item.label}
                       </Link>
                     </Button>

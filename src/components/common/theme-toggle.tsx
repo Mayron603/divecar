@@ -17,23 +17,23 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80 hover:text-accent group">
+        <Button variant="ghost" size="icon" className="text-foreground hover:bg-accent/10 hover:text-primary group">
           {resolvedTheme === 'dark' ? (
-            <Moon className="h-5 w-5 transition-all group-hover:text-accent" />
+            <Moon className="h-5 w-5 transition-all group-hover:text-primary" />
           ) : (
-            <Sun className="h-5 w-5 transition-all group-hover:text-accent" />
+            <Sun className="h-5 w-5 transition-all group-hover:text-primary" />
           )}
           <span className="sr-only">Alternar tema</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme('light')} className={theme === 'light' ? 'bg-accent' : ''}>
+        <DropdownMenuItem onClick={() => setTheme('light')} className={theme === 'light' ? 'bg-accent text-accent-foreground' : ''}>
           Claro
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('dark')} className={theme === 'dark' ? 'bg-accent' : ''}>
+        <DropdownMenuItem onClick={() => setTheme('dark')} className={theme === 'dark' ? 'bg-accent text-accent-foreground' : ''}>
           Escuro
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')} className={theme === 'system' ? 'bg-accent' : ''}>
+        <DropdownMenuItem onClick={() => setTheme('system')} className={theme === 'system' ? 'bg-accent text-accent-foreground' : ''}>
           Sistema
         </DropdownMenuItem>
       </DropdownMenuContent>

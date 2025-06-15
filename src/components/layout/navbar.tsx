@@ -116,27 +116,22 @@ export function Navbar() {
   const avatarUrl = user?.user_metadata?.avatar_url;
   const userEmail = user?.email;
 
-  // Define text and icon colors based on theme for readability against Navbar background
-  const navTextColorLight = "text-slate-100"; // Light text for dark blue-gray Navbar
-  const navIconColorLight = "text-slate-100/80 group-hover:text-slate-50"; // Lighter icons
-  
-  const navTextColorDark = "text-blue-800"; // Dark text for white Navbar
-  const navIconColorDark = "text-blue-800/80 group-hover:text-blue-800"; // Darker icons
-
-  const navButtonHoverLight = "hover:bg-slate-700/80"; // Darker hover for light text
-  const navButtonHoverDark = "hover:bg-black/5"; // Lighter hover for dark text
+  // Navbar tem fundo escuro, então texto e ícones devem ser sempre claros.
+  const navTextColor = "text-slate-100";
+  const navIconColor = "text-slate-100/90 group-hover:text-white";
+  const navButtonHover = "hover:bg-white/10"; // Um hover sutil sobre o fundo escuro
 
   const UserProfileDisplay = () => {
     if (isLoading) {
-      return <div className={`h-10 w-32 bg-slate-500/50 dark:bg-slate-300/50 animate-pulse rounded-md`}></div>;
+      return <div className={`h-10 w-32 bg-slate-500/30 animate-pulse rounded-md`}></div>;
     }
     if (!user) {
       return (
         <>
           {unauthenticatedNavItems.map((item) => (
-            <Button key={item.label} variant="ghost" asChild className={`${navTextColorLight} dark:${navTextColorDark} ${navButtonHoverLight} dark:${navButtonHoverDark} transition-colors duration-300 px-2 lg:px-3 group`}>
+            <Button key={item.label} variant="ghost" asChild className={`${navTextColor} ${navButtonHover} transition-colors duration-300 px-2 lg:px-3 group`}>
               <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                <item.icon className={`h-5 w-5 ${navIconColorLight} dark:${navIconColorDark} transition-colors duration-300`} />
+                <item.icon className={`h-5 w-5 ${navIconColor} transition-colors duration-300`} />
                 {item.label}
               </Link>
             </Button>
@@ -148,10 +143,10 @@ export function Navbar() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className={`relative h-10 w-10 rounded-full p-0 ${navButtonHoverLight} dark:${navButtonHoverDark} transition-all duration-300 hover:scale-110`}>
+          <Button variant="ghost" className={`relative h-10 w-10 rounded-full p-0 ${navButtonHover} transition-all duration-300 hover:scale-110`}>
             <Avatar className="h-9 w-9 border-2 border-accent">
               <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
-              <AvatarFallback className="bg-primary/80 dark:bg-slate-200 text-accent dark:text-primary text-lg">
+              <AvatarFallback className="bg-slate-600 text-accent text-lg"> {/* Fallback para Navbar escura */}
                  <UserCircle2 className="h-6 w-6" />
               </AvatarFallback>
             </Avatar>
@@ -179,19 +174,19 @@ export function Navbar() {
   };
   
   return (
-    <header className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 dark:bg-gradient-to-r dark:from-slate-100 dark:via-white dark:to-slate-200 shadow-lg sticky top-0 z-50">
+    <header className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
         <Link href="/" className="flex items-center gap-3 group">
-          <Building className={`h-10 w-10 ${navTextColorLight} dark:${navTextColorDark} transition-transform duration-300 group-hover:scale-110`} />
-          <span className={`text-xl md:text-2xl font-headline font-semibold ${navTextColorLight} dark:${navTextColorDark}`}>DIVECAR Osasco</span>
+          <Building className={`h-10 w-10 ${navTextColor} transition-transform duration-300 group-hover:scale-110`} />
+          <span className={`text-xl md:text-2xl font-headline font-semibold ${navTextColor}`}>DIVECAR Osasco</span>
         </Link>
 
         {/* Desktop Navbar */}
         <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
           {baseNavItems.map((item) => (
-            <Button key={item.label} variant="ghost" asChild className={`${navTextColorLight} dark:${navTextColorDark} ${navButtonHoverLight} dark:${navButtonHoverDark} transition-colors duration-300 px-2 lg:px-3 group`}>
+            <Button key={item.label} variant="ghost" asChild className={`${navTextColor} ${navButtonHover} transition-colors duration-300 px-2 lg:px-3 group`}>
               <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                <item.icon className={`h-5 w-5 ${navIconColorLight} dark:${navIconColorDark} transition-colors duration-300`} />
+                <item.icon className={`h-5 w-5 ${navIconColor} transition-colors duration-300`} />
                 {item.label}
               </Link>
             </Button>
@@ -205,11 +200,11 @@ export function Navbar() {
           <ThemeToggle /> 
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className={`${navTextColorLight} dark:${navTextColorDark} ${navButtonHoverLight} dark:${navButtonHoverDark}`}>
+              <Button variant="ghost" size="icon" className={`${navTextColor} ${navButtonHover}`}>
                 <Menu className="h-7 w-7" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="bg-background text-foreground p-6 w-[250px] sm:w-[300px]"> {/* Mobile sheet uses standard card/popover bg */}
+            <SheetContent side="right" className="bg-background text-foreground p-6 w-[250px] sm:w-[300px]"> {/* Mobile sheet usa standard card/popover bg */}
               <div className="flex flex-col space-y-3 mt-6">
                 {baseNavItems.map((item) => (
                   <Button key={`mobile-base-${item.label}`} variant="ghost" asChild className="text-foreground hover:bg-accent/10 hover:text-primary transition-colors duration-300 justify-start w-full text-left group">

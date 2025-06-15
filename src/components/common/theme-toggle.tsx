@@ -14,16 +14,16 @@ import {
 export function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
 
-  // Light theme (dark blue-gray navbar): icons are light (slate-100)
-  // Dark theme (white navbar): icons are dark (blue-700 or similar)
-  const buttonClasses = "text-slate-100 dark:text-blue-700 hover:bg-slate-700/80 dark:hover:bg-black/10 group";
-  const iconClasses = "h-5 w-5 text-slate-100 dark:text-blue-700 group-hover:text-slate-50 dark:group-hover:text-blue-800 transition-all";
+  // Navbar tem fundo escuro consistente, então os ícones do toggle devem ser sempre claros.
+  const buttonClasses = "text-slate-100 hover:bg-white/20 group"; // Efeito hover sutil sobre fundo escuro
+  const iconClasses = "h-5 w-5 text-slate-100 group-hover:text-white transition-all";
 
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className={buttonClasses}>
+          {/* O ícone (Sol/Lua) exibido depende do tema do CORPO da página, mas sua COR é sempre clara */}
           {resolvedTheme === 'dark' ? (
             <Moon className={iconClasses} />
           ) : (

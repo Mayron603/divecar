@@ -43,7 +43,7 @@ export function Navbar() {
   const supabase = createSupabaseBrowserClient();
 
   useEffect(() => {
-    console.log('[Navbar] useEffect: Initializing session check and auth listener.');
+    console.log('[Navbar] useEffect: V3 Initializing session check and auth listener.');
     const getSession = async () => {
       setIsLoading(true);
       console.log('[Navbar] useEffect/getSession: Attempting to get session.');
@@ -52,10 +52,11 @@ export function Navbar() {
         if (sessionError) {
           console.error('[Navbar] Error getting session:', sessionError.message);
         }
-        console.log('[Navbar] useEffect/getSession: Session fetched. User in session:', session?.user?.email ?? 'No user in session');
-        console.log('[Navbar] Full user object from getSession (initial):', JSON.stringify(session?.user, null, 2));
-        console.log('[Navbar] User metadata from getSession (initial):', JSON.stringify(session?.user?.user_metadata, null, 2));
-        setUser(session?.user ?? null);
+        const initialUser = session?.user ?? null;
+        console.log('[Navbar] useEffect/getSession: Session fetched. User in session:', initialUser?.email ?? 'No user in session');
+        console.log('[Navbar] Full user object from getSession (initial):', JSON.stringify(initialUser, null, 2));
+        console.log('[Navbar] User metadata from getSession (initial):', JSON.stringify(initialUser?.user_metadata, null, 2));
+        setUser(initialUser);
       } catch (e) {
         console.error('[Navbar] Exception during getSession:', e);
         setUser(null);
@@ -67,11 +68,13 @@ export function Navbar() {
     getSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[Navbar] onAuthStateChange event:', event, 'User in session:', session?.user?.email ?? 'No user');
-      console.log('[Navbar] Full user object from onAuthStateChange:', JSON.stringify(session?.user, null, 2));
-      console.log('[Navbar] User metadata from onAuthStateChange:', JSON.stringify(session?.user?.user_metadata, null, 2));
+      const currentUser = session?.user ?? null;
+      console.log(`[Navbar] onAuthStateChange V3 event: ${event}. Current user email: ${currentUser?.email ?? 'No user'}.`);
+      console.log('[Navbar] Full user object from onAuthStateChange:', JSON.stringify(currentUser, null, 2));
+      console.log('[Navbar] User metadata from onAuthStateChange:', JSON.stringify(currentUser?.user_metadata, null, 2));
       
-      setUser(session?.user ?? null);
+      // Sempre atualiza o estado do usuário, seja para o novo usuário ou para null no logout
+      setUser(currentUser);
       setIsLoading(false); 
 
       if (event === 'SIGNED_IN' && (pathname === '/login' || pathname === '/register')) {
@@ -80,10 +83,10 @@ export function Navbar() {
         router.refresh(); 
       }
       if (event === 'SIGNED_OUT') {
-        console.log('[Navbar] SIGNED_OUT event detected. User state updated. Forcing router refresh and navigating to home.');
-        // setUser(null) is handled by setUser(session?.user ?? null) at the top of the listener
-        router.push('/'); 
-        router.refresh(); 
+        console.log('[Navbar] SIGNED_OUT event detected. Setting user to null, then refreshing UI and pushing to home.');
+        setUser(null); // 1. Atualiza o estado local para null
+        router.refresh(); // 2. Força a re-renderização da UI atual com o usuário como null
+        router.push('/'); // 3. Navega para a página inicial
       }
     });
 
@@ -123,8 +126,7 @@ export function Navbar() {
             <Avatar className="h-9 w-9 border-2 border-accent">
               <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
               <AvatarFallback className="bg-primary text-accent text-lg">
-                {/* Fallback to UserCircle2 if avatarUrl is not available, instead of initial. */}
-                <UserCircle2 className="h-6 w-6" />
+                 <UserCircle2 className="h-6 w-6" />
               </AvatarFallback>
             </Avatar>
           </Button>
@@ -141,7 +143,10 @@ export function Navbar() {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <form action={signOutUser} className="w-full">
+          <form action={async () => {
+            await signOutUser();
+            // A atualização do estado e refresh agora é primariamente tratada pelo onAuthStateChange
+          }} className="w-full">
             <DropdownMenuItem asChild>
                <Button type="submit" variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2">
                 <LogOut className="mr-2 h-4 w-4" />
@@ -225,7 +230,9 @@ export function Navbar() {
                           </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator className="bg-primary-foreground/20" />
-                        <form action={signOutUser} className="w-full">
+                        <form action={async () => {
+                            await signOutUser();
+                        }} className="w-full">
                           <DropdownMenuItem asChild>
                              <Button type="submit" variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2 text-primary-foreground hover:bg-primary/90 hover:text-accent">
                               <LogOut className="mr-2 h-4 w-4" />
@@ -254,4 +261,6 @@ export function Navbar() {
     </header>
   );
 }
+    
+
     

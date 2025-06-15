@@ -43,7 +43,7 @@ export function Navbar() {
   const supabase = createSupabaseBrowserClient();
 
   useEffect(() => {
-    console.log('[Navbar] useEffect: V3 Initializing session check and auth listener.');
+    console.log('[Navbar] useEffect: V_RELOAD_FIX Initializing session check and auth listener.');
     const getSession = async () => {
       setIsLoading(true);
       console.log('[Navbar] useEffect/getSession: Attempting to get session.');
@@ -69,12 +69,11 @@ export function Navbar() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null;
-      console.log(`[Navbar] onAuthStateChange V3 event: ${event}. Current user email: ${currentUser?.email ?? 'No user'}.`);
+      console.log(`[Navbar] onAuthStateChange V_RELOAD_FIX event: ${event}. Current user email: ${currentUser?.email ?? 'No user'}.`);
       console.log('[Navbar] Full user object from onAuthStateChange:', JSON.stringify(currentUser, null, 2));
       console.log('[Navbar] User metadata from onAuthStateChange:', JSON.stringify(currentUser?.user_metadata, null, 2));
       
-      // Sempre atualiza o estado do usuário, seja para o novo usuário ou para null no logout
-      setUser(currentUser);
+      setUser(currentUser); // Update user state for all events
       setIsLoading(false); 
 
       if (event === 'SIGNED_IN' && (pathname === '/login' || pathname === '/register')) {
@@ -83,10 +82,9 @@ export function Navbar() {
         router.refresh(); 
       }
       if (event === 'SIGNED_OUT') {
-        console.log('[Navbar] SIGNED_OUT event detected. Setting user to null, then refreshing UI and pushing to home.');
-        setUser(null); // 1. Atualiza o estado local para null
-        router.refresh(); // 2. Força a re-renderização da UI atual com o usuário como null
-        router.push('/'); // 3. Navega para a página inicial
+        console.log('[Navbar] SIGNED_OUT event detected. Setting user to null and reloading page.');
+        setUser(null); 
+        window.location.reload(); // Force a full page reload to clear state
       }
     });
 
@@ -145,7 +143,7 @@ export function Navbar() {
           <DropdownMenuSeparator />
           <form action={async () => {
             await signOutUser();
-            // A atualização do estado e refresh agora é primariamente tratada pelo onAuthStateChange
+            // The onAuthStateChange listener will handle the UI update and reload
           }} className="w-full">
             <DropdownMenuItem asChild>
                <Button type="submit" variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2">
@@ -232,6 +230,7 @@ export function Navbar() {
                         <DropdownMenuSeparator className="bg-primary-foreground/20" />
                         <form action={async () => {
                             await signOutUser();
+                            // The onAuthStateChange listener will handle the UI update and reload
                         }} className="w-full">
                           <DropdownMenuItem asChild>
                              <Button type="submit" variant="ghost" className="w-full justify-start cursor-pointer h-auto py-1.5 px-2 text-primary-foreground hover:bg-primary/90 hover:text-accent">

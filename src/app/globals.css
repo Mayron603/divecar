@@ -65,8 +65,8 @@ body {
     --popover: 0 0% 10%; /* Slightly darker than card for popovers - e.g., #1A1A1A */
     --popover-foreground: 0 0% 95%; /* Light Gray / Off-white */
 
-    --primary: 51 100% 50%; /* Gold #FFD700 - Main interactive elements */
-    --primary-foreground: 0 0% 10%; /* Dark Gray/Almost Black text on gold for contrast */
+    --primary: 0 0% 80%; /* Light Gray as primary color in dark mode - e.g., #CCCCCC */
+    --primary-foreground: 0 0% 10%; /* Dark Gray/Almost Black text on light gray primary */
     
     --secondary: 0 0% 25%; /* Medium Gray for secondary elements - e.g., #404040 */
     --secondary-foreground: 0 0% 95%; /* Light Gray text on medium gray */
@@ -74,7 +74,7 @@ body {
     --muted: 0 0% 18%; /* Darker Gray for muted backgrounds - e.g., #2E2E2E */
     --muted-foreground: 0 0% 65%; /* Medium-Light Gray for muted text - e.g., #A6A6A6 */
 
-    --accent: 51 100% 50%; /* Gold #FFD700 (Consistent with PRD) */
+    --accent: 51 100% 50%; /* Gold #FFD700 (Consistent with PRD, used for highlights) */
     --accent-foreground: 0 0% 10%; /* Dark Gray/Almost Black text on gold */
 
     --destructive: 0 70% 55%; /* A clearer, slightly brighter red in dark mode */
@@ -90,11 +90,11 @@ body {
     --chart-4: 43 70% 80%;
     --chart-5: 27 85% 80%;
 
-    /* Sidebar colors for dark theme (Gray scale) */
+    /* Sidebar colors for dark theme (Gray scale with gold accent for active) */
     --sidebar-background: 0 0% 6%;   /* Even darker Gray for sidebar - e.g., #0F0F0F */
     --sidebar-foreground: 0 0% 90%;  /* Light Gray for text - e.g., #E5E5E5 */
     --sidebar-primary: 51 100% 50%;    /* Gold for active items in sidebar */
-    --sidebar-primary-foreground: 0 0% 10%; /* Dark text on gold */
+    --sidebar-primary-foreground: 0 0% 10%; /* Dark text on gold for active sidebar item */
     --sidebar-accent: 0 0% 15%;     /* Hover for sidebar items, slightly lighter gray - e.g., #262626 */
     --sidebar-accent-foreground: 0 0% 98%; /* Brighter text on hover */
     --sidebar-border: 0 0% 13%;    /* Border for sidebar elements, dark gray - e.g., #212121 */
@@ -110,3 +110,4 @@ body {
     @apply bg-background text-foreground;
   }
 }
+

@@ -14,10 +14,11 @@ import {
 export function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
 
-  // Navbar light theme: dark blue bg, so icons are light (primary-foreground)
-  // Navbar dark theme: white/light-gray bg, so icons are dark (e.g., blue-700)
-  const buttonClasses = "text-primary-foreground dark:text-blue-700 hover:bg-white/20 dark:hover:bg-black/10 group";
-  const iconClasses = "h-5 w-5 text-primary-foreground dark:text-blue-700 group-hover:text-primary-foreground dark:group-hover:text-blue-800 transition-all";
+  // Light theme (dark blue-gray navbar): icons are light (slate-100)
+  // Dark theme (white navbar): icons are dark (blue-700 or similar)
+  const buttonClasses = "text-slate-100 dark:text-blue-700 hover:bg-slate-700/80 dark:hover:bg-black/10 group";
+  const iconClasses = "h-5 w-5 text-slate-100 dark:text-blue-700 group-hover:text-slate-50 dark:group-hover:text-blue-800 transition-all";
+
 
   return (
     <DropdownMenu>
@@ -45,5 +46,4 @@ export function ThemeToggle() {
     </DropdownMenu>
   );
 }
-
     

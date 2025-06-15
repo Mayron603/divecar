@@ -98,9 +98,9 @@ export function Navbar() {
     setIsLoading(true);
     try {
       await signOutUser();
-      setUser(null); // Explicitly set user to null on client
+      setUser(null); 
       console.log('[Navbar] handleSignOut: signOutUser (Server Action) completou e user set to null.');
-      window.location.reload(); // Force reload to ensure all states are reset
+      window.location.reload(); 
     } catch (error) {
       console.error('[Navbar] handleSignOut: Erro durante o processo de logout:', error);
       toast({
@@ -108,7 +108,7 @@ export function Navbar() {
         title: 'Erro ao Sair',
         description: 'Não foi possível completar o logout. Tente novamente.',
       });
-      setIsLoading(false); // Only set to false on error, otherwise reload handles it
+      setIsLoading(false); 
     }
   };
 
@@ -116,17 +116,27 @@ export function Navbar() {
   const avatarUrl = user?.user_metadata?.avatar_url;
   const userEmail = user?.email;
 
+  // Define text and icon colors based on theme for readability against Navbar background
+  const navTextColorLight = "text-slate-100"; // Light text for dark blue-gray Navbar
+  const navIconColorLight = "text-slate-100/80 group-hover:text-slate-50"; // Lighter icons
+  
+  const navTextColorDark = "text-blue-800"; // Dark text for white Navbar
+  const navIconColorDark = "text-blue-800/80 group-hover:text-blue-800"; // Darker icons
+
+  const navButtonHoverLight = "hover:bg-slate-700/80"; // Darker hover for light text
+  const navButtonHoverDark = "hover:bg-black/5"; // Lighter hover for dark text
+
   const UserProfileDisplay = () => {
     if (isLoading) {
-      return <div className="h-10 w-32 bg-primary-foreground/10 dark:bg-primary/10 animate-pulse rounded-md"></div>;
+      return <div className={`h-10 w-32 bg-slate-500/50 dark:bg-slate-300/50 animate-pulse rounded-md`}></div>;
     }
     if (!user) {
       return (
         <>
           {unauthenticatedNavItems.map((item) => (
-            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground dark:text-blue-800 hover:bg-white/10 dark:hover:bg-black/5 transition-colors duration-300 px-2 lg:px-3 group">
+            <Button key={item.label} variant="ghost" asChild className={`${navTextColorLight} dark:${navTextColorDark} ${navButtonHoverLight} dark:${navButtonHoverDark} transition-colors duration-300 px-2 lg:px-3 group`}>
               <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                <item.icon className="h-5 w-5 text-primary-foreground/80 dark:text-blue-800/80 group-hover:text-primary-foreground dark:group-hover:text-blue-800 transition-colors duration-300" />
+                <item.icon className={`h-5 w-5 ${navIconColorLight} dark:${navIconColorDark} transition-colors duration-300`} />
                 {item.label}
               </Link>
             </Button>
@@ -138,10 +148,10 @@ export function Navbar() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-white/20 dark:hover:bg-black/10 transition-all duration-300 hover:scale-110">
+          <Button variant="ghost" className={`relative h-10 w-10 rounded-full p-0 ${navButtonHoverLight} dark:${navButtonHoverDark} transition-all duration-300 hover:scale-110`}>
             <Avatar className="h-9 w-9 border-2 border-accent">
               <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
-              <AvatarFallback className="bg-primary/80 dark:bg-slate-200 text-accent dark:text-blue-700 text-lg">
+              <AvatarFallback className="bg-primary/80 dark:bg-slate-200 text-accent dark:text-primary text-lg">
                  <UserCircle2 className="h-6 w-6" />
               </AvatarFallback>
             </Avatar>
@@ -169,19 +179,19 @@ export function Navbar() {
   };
   
   return (
-    <header className="bg-gradient-to-r from-blue-700 via-blue-800 to-blue-900 dark:bg-gradient-to-r dark:from-slate-100 dark:via-white dark:to-slate-200 shadow-lg sticky top-0 z-50">
+    <header className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 dark:bg-gradient-to-r dark:from-slate-100 dark:via-white dark:to-slate-200 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
         <Link href="/" className="flex items-center gap-3 group">
-          <Building className="h-10 w-10 text-primary-foreground dark:text-blue-700 transition-transform duration-300 group-hover:scale-110" />
-          <span className="text-xl md:text-2xl font-headline font-semibold text-primary-foreground dark:text-blue-700">DIVECAR Osasco</span>
+          <Building className={`h-10 w-10 ${navTextColorLight} dark:${navTextColorDark} transition-transform duration-300 group-hover:scale-110`} />
+          <span className={`text-xl md:text-2xl font-headline font-semibold ${navTextColorLight} dark:${navTextColorDark}`}>DIVECAR Osasco</span>
         </Link>
 
         {/* Desktop Navbar */}
         <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
           {baseNavItems.map((item) => (
-            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground dark:text-blue-800 hover:bg-white/10 dark:hover:bg-black/5 transition-colors duration-300 px-2 lg:px-3 group">
+            <Button key={item.label} variant="ghost" asChild className={`${navTextColorLight} dark:${navTextColorDark} ${navButtonHoverLight} dark:${navButtonHoverDark} transition-colors duration-300 px-2 lg:px-3 group`}>
               <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                <item.icon className="h-5 w-5 text-primary-foreground/80 dark:text-blue-800/80 group-hover:text-primary-foreground dark:group-hover:text-blue-800 transition-colors duration-300" />
+                <item.icon className={`h-5 w-5 ${navIconColorLight} dark:${navIconColorDark} transition-colors duration-300`} />
                 {item.label}
               </Link>
             </Button>
@@ -195,7 +205,7 @@ export function Navbar() {
           <ThemeToggle /> 
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-primary-foreground dark:text-blue-700 hover:bg-white/10 dark:hover:bg-black/5">
+              <Button variant="ghost" size="icon" className={`${navTextColorLight} dark:${navTextColorDark} ${navButtonHoverLight} dark:${navButtonHoverDark}`}>
                 <Menu className="h-7 w-7" />
               </Button>
             </SheetTrigger>
@@ -265,6 +275,4 @@ export function Navbar() {
     </header>
   );
 }
-    
-
     

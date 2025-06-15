@@ -44,19 +44,19 @@ body {
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
 
-    /* Sidebar colors based on the light theme */
+    /* Sidebar colors (para tema claro, sidebar escura) */
     --sidebar-background: 210 100% 10%; /* Very Dark Blue for sidebar (darker than primary) */
-    --sidebar-foreground: 0 0% 98%;
+    --sidebar-foreground: 0 0% 98%; /* White text */
     --sidebar-primary: 51 100% 50%; /* Gold for active items in sidebar */
     --sidebar-primary-foreground: 210 100% 10%; /* Deep blue text on gold */
     --sidebar-accent: 210 100% 15%; /* Hover color, slightly lighter than sidebar bg */
-    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-accent-foreground: 0 0% 98%; /* White text on hover */
     --sidebar-border: 210 100% 15%;
     --sidebar-ring: 51 100% 50%;
   }
 
   .dark {
-    --background: 0 0% 8%; /* Very Dark Gray - e.g., #141414 */
+    --background: 0 0% 8%; /* Very Dark Gray/Almost Black - e.g., #141414 */
     --foreground: 0 0% 95%; /* Light Gray / Off-white - e.g., #F2F2F2 */
 
     --card: 0 0% 12%; /* Dark Gray for cards, slightly lighter than background - e.g., #1F1F1F */
@@ -90,7 +90,7 @@ body {
     --chart-4: 43 70% 80%;
     --chart-5: 27 85% 80%;
 
-    /* Sidebar colors for dark theme (Gray scale with gold accent for active) */
+    /* Sidebar colors for dark theme (cinza escuro com dourado) */
     --sidebar-background: 0 0% 6%;   /* Even darker Gray for sidebar - e.g., #0F0F0F */
     --sidebar-foreground: 0 0% 90%;  /* Light Gray for text - e.g., #E5E5E5 */
     --sidebar-primary: 51 100% 50%;    /* Gold for active items in sidebar */
@@ -110,4 +110,3 @@ body {
     @apply bg-background text-foreground;
   }
 }
-

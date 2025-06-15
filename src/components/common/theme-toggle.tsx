@@ -14,14 +14,21 @@ import {
 export function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
 
+  // Adjusted classes for better contrast on new navbar backgrounds
+  const toggleButtonTextColor = "text-primary dark:text-slate-100";
+  const toggleButtonHoverBg = "hover:bg-black/10 dark:hover:bg-white/20";
+  const iconColor = "text-primary dark:text-slate-100";
+  const iconHoverColor = "group-hover:text-primary dark:group-hover:text-slate-50";
+
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-foreground hover:bg-accent/10 hover:text-primary group">
+        <Button variant="ghost" size="icon" className={`${toggleButtonTextColor} ${toggleButtonHoverBg} group`}>
           {resolvedTheme === 'dark' ? (
-            <Moon className="h-5 w-5 transition-all group-hover:text-primary" />
+            <Moon className={`h-5 w-5 ${iconColor} transition-all ${iconHoverColor}`} />
           ) : (
-            <Sun className="h-5 w-5 transition-all group-hover:text-primary" />
+            <Sun className={`h-5 w-5 ${iconColor} transition-all ${iconHoverColor}`} />
           )}
           <span className="sr-only">Alternar tema</span>
         </Button>
@@ -40,3 +47,5 @@ export function ThemeToggle() {
     </DropdownMenu>
   );
 }
+
+    

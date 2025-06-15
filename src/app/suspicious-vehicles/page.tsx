@@ -558,7 +558,7 @@ export default function SuspiciousVehiclesPage() {
                   onChange={handleFileChange}
                   ref={photoInputRef}
                   disabled={isSubmitting || isUploading}
-                  className="file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  className="py-2.5 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                   accept="image/*"
                 />
                 {isUploading && (
@@ -715,3 +715,4 @@ export default function SuspiciousVehiclesPage() {
     </div>
   );
 }
+

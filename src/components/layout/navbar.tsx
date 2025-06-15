@@ -80,8 +80,6 @@ export function Navbar() {
         router.push('/');
       }
       
-      // This reload handles the case where sign out happens on any page
-      // and ensures the UI correctly reflects the signed-out state.
       if (event === 'SIGNED_OUT') {
         console.log('[Navbar] SIGNED_OUT event detected by onAuthStateChange. V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD_CLICK. Setting user to null and reloading.');
         setUser(null); 
@@ -100,9 +98,9 @@ export function Navbar() {
     setIsLoading(true);
     try {
       await signOutUser();
-      console.log('[Navbar] handleSignOut: signOutUser (Server Action) completou.');
-      // No need to router.push, onAuthStateChange and subsequent reload will handle UI update.
-      // setUser(null) is also handled by onAuthStateChange listener.
+      setUser(null); // Explicitly set user to null on client
+      console.log('[Navbar] handleSignOut: signOutUser (Server Action) completou e user set to null.');
+      window.location.reload(); // Force reload to ensure all states are reset
     } catch (error) {
       console.error('[Navbar] handleSignOut: Erro durante o processo de logout:', error);
       toast({
@@ -110,11 +108,8 @@ export function Navbar() {
         title: 'Erro ao Sair',
         description: 'Não foi possível completar o logout. Tente novamente.',
       });
-      setIsLoading(false);
+      setIsLoading(false); // Only set to false on error, otherwise reload handles it
     }
-    // If onAuthStateChange doesn't trigger reload reliably for some reason,
-    // a manual reload can be placed here, but it should ideally be handled by the listener.
-    // window.location.reload(); // Moved to onAuthStateChange for 'SIGNED_OUT'
   };
 
 
@@ -123,15 +118,15 @@ export function Navbar() {
 
   const UserProfileDisplay = () => {
     if (isLoading) {
-      return <div className="h-10 w-32 bg-muted/50 dark:bg-white/10 animate-pulse rounded-md"></div>;
+      return <div className="h-10 w-32 bg-primary-foreground/10 dark:bg-primary/10 animate-pulse rounded-md"></div>;
     }
     if (!user) {
       return (
         <>
           {unauthenticatedNavItems.map((item) => (
-            <Button key={item.label} variant="ghost" asChild className="text-primary dark:text-slate-100 hover:bg-black/5 dark:hover:bg-white/10 transition-colors duration-300 px-2 lg:px-3 group">
+            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground dark:text-blue-800 hover:bg-white/10 dark:hover:bg-black/5 transition-colors duration-300 px-2 lg:px-3 group">
               <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                <item.icon className="h-5 w-5 text-primary/80 dark:text-slate-300 group-hover:text-primary dark:group-hover:text-slate-100 transition-colors duration-300" />
+                <item.icon className="h-5 w-5 text-primary-foreground/80 dark:text-blue-800/80 group-hover:text-primary-foreground dark:group-hover:text-blue-800 transition-colors duration-300" />
                 {item.label}
               </Link>
             </Button>
@@ -143,10 +138,10 @@ export function Navbar() {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-300 hover:scale-110">
+          <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 hover:bg-white/20 dark:hover:bg-black/10 transition-all duration-300 hover:scale-110">
             <Avatar className="h-9 w-9 border-2 border-accent">
               <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
-              <AvatarFallback className="bg-primary/80 dark:bg-slate-600 text-accent dark:text-slate-100 text-lg">
+              <AvatarFallback className="bg-primary/80 dark:bg-slate-200 text-accent dark:text-blue-700 text-lg">
                  <UserCircle2 className="h-6 w-6" />
               </AvatarFallback>
             </Avatar>
@@ -173,29 +168,20 @@ export function Navbar() {
     );
   };
   
-  // Classes for Navbar text and icons, to be applied based on theme.
-  // Light theme: text-primary (dark blue) on blue gradient
-  // Dark theme: text-slate-100 (light gray) on dark slate blue background
-  const navTextColor = "text-primary dark:text-slate-100";
-  const navIconColor = "text-primary/80 dark:text-slate-300";
-  const navIconHoverColor = "group-hover:text-primary dark:group-hover:text-slate-100";
-  const navButtonHoverBg = "hover:bg-black/5 dark:hover:bg-white/10";
-
-
   return (
-    <header className="bg-gradient-to-r from-sky-400 via-cyan-300 to-blue-400 dark:bg-slate-800 shadow-lg sticky top-0 z-50">
+    <header className="bg-gradient-to-r from-blue-700 via-blue-800 to-blue-900 dark:bg-gradient-to-r dark:from-slate-100 dark:via-white dark:to-slate-200 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
         <Link href="/" className="flex items-center gap-3 group">
-          <Building className={`h-10 w-10 ${navTextColor} transition-transform duration-300 group-hover:scale-110`} />
-          <span className={`text-xl md:text-2xl font-headline font-semibold ${navTextColor}`}>DIVECAR Osasco</span>
+          <Building className="h-10 w-10 text-primary-foreground dark:text-blue-700 transition-transform duration-300 group-hover:scale-110" />
+          <span className="text-xl md:text-2xl font-headline font-semibold text-primary-foreground dark:text-blue-700">DIVECAR Osasco</span>
         </Link>
 
         {/* Desktop Navbar */}
         <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
           {baseNavItems.map((item) => (
-            <Button key={item.label} variant="ghost" asChild className={`${navTextColor} ${navButtonHoverBg} transition-colors duration-300 px-2 lg:px-3 group`}>
+            <Button key={item.label} variant="ghost" asChild className="text-primary-foreground dark:text-blue-800 hover:bg-white/10 dark:hover:bg-black/5 transition-colors duration-300 px-2 lg:px-3 group">
               <Link href={item.href} className="flex items-center gap-2 text-xs lg:text-sm">
-                <item.icon className={`h-5 w-5 ${navIconColor} ${navIconHoverColor} transition-colors duration-300`} />
+                <item.icon className="h-5 w-5 text-primary-foreground/80 dark:text-blue-800/80 group-hover:text-primary-foreground dark:group-hover:text-blue-800 transition-colors duration-300" />
                 {item.label}
               </Link>
             </Button>
@@ -209,7 +195,7 @@ export function Navbar() {
           <ThemeToggle /> 
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className={`${navTextColor} ${navButtonHoverBg}`}>
+              <Button variant="ghost" size="icon" className="text-primary-foreground dark:text-blue-700 hover:bg-white/10 dark:hover:bg-black/5">
                 <Menu className="h-7 w-7" />
               </Button>
             </SheetTrigger>
@@ -279,5 +265,6 @@ export function Navbar() {
     </header>
   );
 }
+    
 
     

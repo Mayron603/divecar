@@ -14,21 +14,19 @@ import {
 export function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
 
-  // Adjusted classes for better contrast on new navbar backgrounds
-  const toggleButtonTextColor = "text-primary dark:text-slate-100";
-  const toggleButtonHoverBg = "hover:bg-black/10 dark:hover:bg-white/20";
-  const iconColor = "text-primary dark:text-slate-100";
-  const iconHoverColor = "group-hover:text-primary dark:group-hover:text-slate-50";
-
+  // Navbar light theme: dark blue bg, so icons are light (primary-foreground)
+  // Navbar dark theme: white/light-gray bg, so icons are dark (e.g., blue-700)
+  const buttonClasses = "text-primary-foreground dark:text-blue-700 hover:bg-white/20 dark:hover:bg-black/10 group";
+  const iconClasses = "h-5 w-5 text-primary-foreground dark:text-blue-700 group-hover:text-primary-foreground dark:group-hover:text-blue-800 transition-all";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className={`${toggleButtonTextColor} ${toggleButtonHoverBg} group`}>
+        <Button variant="ghost" size="icon" className={buttonClasses}>
           {resolvedTheme === 'dark' ? (
-            <Moon className={`h-5 w-5 ${iconColor} transition-all ${iconHoverColor}`} />
+            <Moon className={iconClasses} />
           ) : (
-            <Sun className={`h-5 w-5 ${iconColor} transition-all ${iconHoverColor}`} />
+            <Sun className={iconClasses} />
           )}
           <span className="sr-only">Alternar tema</span>
         </Button>

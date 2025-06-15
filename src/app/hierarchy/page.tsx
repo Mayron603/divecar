@@ -52,7 +52,7 @@ const hierarchyData: Rank[] = [
 ];
 
 const RankCard = ({ rank }: { rank: Rank }) => (
-  <Card className="shadow-lg mb-6 hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
+  <Card className="shadow-lg mb-6 hover:shadow-2xl transition-all duration-300 ease-in-out flex flex-col h-full hover:-translate-y-1">
     <CardHeader>
       <div className="flex items-center gap-3">
         <rank.icon className="h-8 w-8 text-accent" />

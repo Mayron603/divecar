@@ -440,7 +440,7 @@ export default function SuspiciousVehiclesPage() {
 
 
   const renderMedia = (url: string | undefined) => {
-    if (!url) return <div className="flex items-center justify-center h-32 bg-muted rounded text-muted-foreground"><ImageIcon className="h-8 w-8" /> Sem foto</div>;
+    if (!url) return <div className="flex items-center justify-center h-40 bg-muted rounded text-muted-foreground"><ImageIcon className="h-8 w-8" /> Sem foto</div>;
     
     const isImage = /\.(jpeg|jpg|gif|png|webp)(\?|$)/i.test(url);
 
@@ -551,7 +551,7 @@ export default function SuspiciousVehiclesPage() {
               </div>
 
               <div>
-                <Label htmlFor="vehiclePhoto">Foto do Veículo</Label>
+                <Label htmlFor="vehiclePhoto">Foto do Veículo (Opcional)</Label>
                 <Input
                   id="vehiclePhoto"
                   type="file"
@@ -637,7 +637,7 @@ export default function SuspiciousVehiclesPage() {
       {!isLoading && suspiciousVehicles.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
           {suspiciousVehicles.map((v) => (
-            <Card key={v.id} className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col bg-card">
+            <Card key={v.id} className="shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex flex-col bg-card hover:-translate-y-1">
               <CardHeader className="pb-3">
                 <CardTitle className="text-xl text-primary mb-1 line-clamp-2">{v.vehicleModel}</CardTitle>
                 <p className="text-lg text-secondary font-semibold">{v.licensePlate}</p>

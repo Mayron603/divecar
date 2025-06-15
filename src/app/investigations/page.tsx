@@ -667,7 +667,7 @@ export default function InvestigationsPage() {
               </div>
 
               <div>
-                <Label htmlFor="mediaFiles">Adicionar Mídias (Imagens/Vídeos)</Label>
+                <Label htmlFor="mediaFiles">Adicionar Mídias (Opcional)</Label>
                 <Input
                   id="mediaFiles"
                   type="file"
@@ -765,7 +765,7 @@ export default function InvestigationsPage() {
       {!isLoading && investigations.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
           {investigations.map((inv) => (
-            <Card key={inv.id} className={`shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col border-l-4 ${statusColors[inv.status]?.split(' ')[2] ?? 'border-gray-300'} bg-card`}>
+            <Card key={inv.id} className={`shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out flex flex-col border-l-4 ${statusColors[inv.status]?.split(' ')[2] ?? 'border-gray-300'} bg-card hover:-translate-y-1`}>
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-xl text-primary mb-1 line-clamp-2">{inv.title}</CardTitle>

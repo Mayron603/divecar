@@ -39,13 +39,13 @@ export default function AboutPage() {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-        <div>
+        <div className="overflow-hidden rounded-lg shadow-xl">
           <NextImage
             src="/videos/sobre_nos.png" // Assumindo que o arquivo está em public/videos/
             alt="Informações sobre a DIVECAR Osasco"
-            width={600} // Placeholder width, ajuste conforme necessário
-            height={400} // Placeholder height, ajuste conforme necessário
-            className="w-full h-auto rounded-lg shadow-xl object-cover"
+            width={600} 
+            height={400} 
+            className="w-full h-auto object-cover transition-transform duration-500 ease-in-out hover:scale-105"
             data-ai-hint="institucional equipe"
           />
         </div>
@@ -62,7 +62,7 @@ export default function AboutPage() {
 
       <div className="space-y-8 mt-16">
         {aboutSections.map((section) => (
-          <Card key={section.title} className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <Card key={section.title} className="shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out hover:-translate-y-1">
             <CardHeader className="flex flex-row items-center space-x-4">
               <div className="p-3 bg-accent rounded-full">
                 <section.icon className="h-7 w-7 text-accent-foreground" />
@@ -76,7 +76,7 @@ export default function AboutPage() {
         ))}
       </div>
       
-      <section className="py-12 bg-card p-8 rounded-lg shadow-xl mt-16">
+      <section className="py-12 bg-card p-8 rounded-lg shadow-xl mt-16 transition-all duration-300 ease-in-out hover:shadow-2xl">
         <div className="grid md:grid-cols-2 gap-8 items-center">
           <div>
             <h3 className="text-3xl font-headline font-semibold text-primary mb-4">Nosso Foco Investigativo</h3>
@@ -90,7 +90,7 @@ export default function AboutPage() {
             </ul>
           </div>
           <div className="flex justify-center">
-            <Search className="h-40 w-40 text-primary opacity-80" />
+            <Search className="h-40 w-40 text-primary opacity-80 transition-transform duration-300 ease-in-out hover:scale-110" />
           </div>
         </div>
       </section>

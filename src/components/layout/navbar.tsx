@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-
+import { ThemeToggle } from '@/components/common/theme-toggle'; // Importe o ThemeToggle
 
 const baseNavItems = [
   { href: '/', label: 'Início', icon: Home },
@@ -85,16 +85,9 @@ export function Navbar() {
       }
       
       if (event === 'SIGNED_OUT') {
-        console.log('[Navbar] SIGNED_OUT event detected by onAuthStateChange. V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD. Calling handleSignOut logic.');
-        // This state should already be handled by the explicit handleSignOut function's reload.
-        // If an external event causes sign out (e.g. session expiry), this will catch it.
-        setUser(null); // Ensure local state is cleared
-        if (pathname !== '/login' && pathname !== '/register') {
-           // Only reload if not on auth pages to avoid reload loops if sign out fails.
-           window.location.reload();
-        } else {
-            router.push('/'); // Go to home if on auth pages during external sign out
-        }
+        console.log('[Navbar] SIGNED_OUT event detected by onAuthStateChange. V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD_CLICK. Setting user to null and reloading.');
+        setUser(null); 
+        window.location.reload();
       }
     });
 
@@ -104,18 +97,16 @@ export function Navbar() {
     };
   }, [supabase, router, pathname]);
 
-  const handleSignOut = async () => {
-    console.log('[Navbar] handleSignOut: Iniciando processo de logout no cliente (FORCE_RELOAD_STRATEGY).');
+ const handleSignOut = async () => {
+    console.log('[Navbar] handleSignOut: V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD_CLICK Iniciando logout...');
     setIsLoading(true);
     try {
-      await signOutUser(); 
+      await signOutUser();
       console.log('[Navbar] handleSignOut: signOutUser (Server Action) completou.');
-      setUser(null); // Define o estado do usuário local para null IMEDIATAMENTE
-      console.log('[Navbar] handleSignOut: User state set to null locally.');
-      
-      window.location.reload(); 
-      console.log('[Navbar] handleSignOut: window.location.reload() called.');
-      
+      // O listener onAuthStateChange deve tratar a atualização do estado e o reload.
+      // A linha abaixo é uma garantia se o listener demorar ou falhar.
+      setUser(null); // Define o estado local imediatamente
+      window.location.reload(); // Força o recarregamento
     } catch (error) {
       console.error('[Navbar] handleSignOut: Erro durante o processo de logout:', error);
       toast({
@@ -123,7 +114,7 @@ export function Navbar() {
         title: 'Erro ao Sair',
         description: 'Não foi possível completar o logout. Tente novamente.',
       });
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   };
 
@@ -202,10 +193,12 @@ export function Navbar() {
             </Button>
           ))}
           <UserProfileDisplay />
+          <ThemeToggle /> {/* Botão de Tema Adicionado Aqui */}
         </nav>
 
         {/* Mobile Navbar Trigger */}
-        <div className="md:hidden">
+        <div className="md:hidden flex items-center gap-2">
+          <ThemeToggle /> {/* Botão de Tema Adicionado Aqui para Mobile */}
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="text-primary-foreground hover:text-accent">

@@ -55,40 +55,49 @@ body {
   }
 
   .dark {
-    /* Keeping original dark theme as a fallback, main focus is light theme */
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --background: 220 30% 12%; /* Very dark blue-gray: #161B24 */
+    --foreground: 220 20% 90%; /* Light grayish blue: #DCE1EA */
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --card: 220 30% 16%; /* Darker blue-gray for cards: #1C222E */
+    --card-foreground: 220 20% 90%; /* Light grayish blue */
+
+    --popover: 220 30% 14%; /* Slightly darker for popovers: #191E29 */
+    --popover-foreground: 220 20% 90%; /* Light grayish blue */
+
+    --primary: 40 85% 60%; /* Gold/Bronze, slightly brighter for dark mode: #E6B359 */
+    --primary-foreground: 220 30% 10%; /* Very dark blue for text on gold */
+
+    --secondary: 220 25% 30%; /* Medium-dark blue-gray: #3A4459 */
+    --secondary-foreground: 220 20% 90%; /* Light grayish blue */
+
+    --muted: 220 25% 22%; /* Darker blue-gray for muted backgrounds: #2A3140 */
+    --muted-foreground: 220 20% 65%; /* Lighter grayish blue for muted text: #919BAC */
+
+    --accent: 40 85% 55%; /* Gold/Bronze (consistent with light theme for key highlights): #D9A443 */
+    --accent-foreground: 220 30% 10%; /* Very dark blue for text on gold */
+
+    --destructive: 0 70% 55%; /* A clearer, slightly brighter red in dark mode */
+    --destructive-foreground: 0 0% 98%; /* White text on destructive */
+
+    --border: 220 25% 25%; /* Dark blue-gray border: #323A4D */
+    --input: 220 25% 28%; /* Slightly lighter for input field borders: #364054 */
+    --ring: 40 85% 65%; /* Gold for focus rings, slightly brighter */
+
+    --chart-1: 12 70% 75%; /* Brighter versions of chart colors */
+    --chart-2: 173 55% 65%;
+    --chart-3: 197 35% 50%;
+    --chart-4: 43 70% 80%;
+    --chart-5: 27 85% 80%;
+
+    /* Sidebar colors for dark theme */
+    --sidebar-background: 220 30% 8%;   /* Even darker Blue for sidebar: #0E1117 */
+    --sidebar-foreground: 220 20% 88%;  /* Light grayish blue for text: #D3D9E6 */
+    --sidebar-primary: 40 85% 58%;    /* Gold for active items in sidebar: #E0AC52 */
+    --sidebar-primary-foreground: 220 30% 8%; /* Dark text on gold, matching sidebar bg */
+    --sidebar-accent: 220 30% 18%;     /* Hover for sidebar items: #212836 */
+    --sidebar-accent-foreground: 220 20% 95%; /* Brighter text on hover */
+    --sidebar-border: 220 30% 15%;    /* Border for sidebar elements: #1B212B */
+    --sidebar-ring: 40 85% 62%;      /* Gold ring, slightly brighter */
   }
 }
 

@@ -5,7 +5,7 @@ import { ChevronRight } from 'lucide-react';
 
 export function HeroSection() {
   return (
-    <section className="relative text-primary-foreground py-20 md:py-32 rounded-lg shadow-2xl overflow-hidden mb-16 h-[50vh] md:h-[70vh] flex items-center justify-center">
+    <section className="relative py-20 md:py-32 rounded-lg shadow-2xl overflow-hidden mb-16 h-[50vh] md:h-[70vh] flex items-center justify-center">
       <video
         autoPlay
         loop
@@ -19,11 +19,11 @@ export function HeroSection() {
       </video>
       <div className="absolute inset-0 bg-black/60 z-10"></div> {/* Overlay escurecido para melhor contraste */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-20 text-center">
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-headline font-extrabold tracking-tight drop-shadow-md animate-fade-in-up">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-headline font-extrabold tracking-tight text-white drop-shadow-md animate-fade-in-up">
           <span className="block">Polícia Civil de Osasco</span>
           <span className="block text-accent mt-2">DIVECAR</span>
         </h1>
-        <p className="mt-6 max-w-xl mx-auto text-lg sm:text-xl text-primary-foreground/90 drop-shadow-sm animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+        <p className="mt-6 max-w-xl mx-auto text-lg sm:text-xl text-slate-100 drop-shadow-sm animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
           Divisão de Investigações sobre Furtos e Roubos de Veículos e Cargas. Combatendo o crime com inteligência e rigor.
         </p>
         <div className="mt-10 flex justify-center gap-4 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>

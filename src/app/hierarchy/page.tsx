@@ -4,12 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { LucideIcon } from 'lucide-react';
 import { 
   Users, 
-  Briefcase,
-  FileText,
-  Search,
-  User,
-  ClipboardCheck,
-  FlaskConical
+  Shield,
+  Star,
+  Award,
+  UserCheck
 } from 'lucide-react';
 
 interface Rank {
@@ -20,34 +18,29 @@ interface Rank {
 
 const hierarchyData: Rank[] = [
   {
-    name: "Delegado de Polícia",
-    description: "Preside inquéritos policiais, coordena equipes de investigação, analisa provas, representa pela decretação de medidas cautelares e lidera a unidade ou equipes especializadas.",
-    icon: Briefcase,
+    name: "Comandante da Guarda",
+    description: "Responsável pelo comando geral, planejamento estratégico e gestão administrativa de toda a Guarda Civil Municipal.",
+    icon: Star,
   },
   {
-    name: "Médico Legista",
-    description: "Realiza exames de corpo de delito em vivos e mortos, analisa lesões corporais, determina a causa mortis e elabora laudos técnicos essenciais para a investigação criminal.",
-    icon: ClipboardCheck, 
+    name: "Subcomandante da Guarda",
+    description: "Auxilia diretamente o Comandante, substituindo-o em suas ausências e coordenando as operações e o pessoal.",
+    icon: Shield,
   },
   {
-    name: "Perito Criminal",
-    description: "Coleta e analisa vestígios em locais de crime, examina evidências em laboratório (balística, DNA, informática forense, etc.) e elabora laudos periciais fundamentais para a elucidação de crimes.",
-    icon: FlaskConical,
+    name: "Inspetor",
+    description: "Coordena grandes áreas operacionais ou divisões administrativas, supervisionando as equipes e garantindo a execução das diretrizes do comando.",
+    icon: Award,
   },
   {
-    name: "Investigador de Polícia",
-    description: "Realiza diligências investigativas, coleta de provas, oitivas, campanas, infiltrações e outras atividades de campo e inteligência para a elucidação de crimes e identificação de autores.",
-    icon: Search,
+    name: "Subinspetor",
+    description: "Lidera equipes em campo, supervisiona o patrulhamento em setores específicos e atua como elo entre os guardas e o comando superior.",
+    icon: UserCheck,
   },
   {
-    name: "Escrivão de Polícia",
-    description: "Responsável pela formalização dos atos de polícia judiciária, como depoimentos, autos de prisão, e pela guarda, organização e tramitação de inquéritos e outros procedimentos policiais.",
-    icon: FileText,
-  },
-  {
-    name: "Agente Policial",
-    description: "Auxilia nas atividades investigativas e operacionais, executa mandados, conduz viaturas, realiza escoltas, garante a segurança de instalações policiais e presta apoio logístico às equipes.",
-    icon: User,
+    name: "Guarda Civil Municipal",
+    description: "Executa o patrulhamento preventivo, atende ocorrências, orienta o público e zela pela segurança dos cidadãos e do patrimônio municipal.",
+    icon: Users,
   },
 ];
 
@@ -58,7 +51,7 @@ const RankCard = ({ rank, animationDelay }: { rank: Rank, animationDelay: string
   >
     <CardHeader>
       <div className="flex items-center gap-3">
-        <rank.icon className="h-8 w-8 text-accent transition-transform duration-300 group-hover:scale-110" />
+        <rank.icon className="h-8 w-8 text-primary transition-transform duration-300 group-hover:scale-110" />
         <CardTitle className="text-2xl text-primary">{rank.name}</CardTitle>
       </div>
     </CardHeader>
@@ -72,8 +65,8 @@ export default function HierarchyPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Hierarquia da Polícia Civil"
-        description="Conheça os cargos e funções que compõem a estrutura da Polícia Civil, incluindo os atuantes na DIVECAR Osasco."
+        title="Hierarquia da GCM de Osasco"
+        description="Conheça os postos e graduações que compõem a estrutura da nossa Guarda Civil Municipal."
         icon={Users}
       />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

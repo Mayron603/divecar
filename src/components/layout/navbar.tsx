@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Building, Home, Users, ScrollText, Info, FolderSearch, AlertTriangle, UserPlus, LogIn, LogOut, UserCircle2 } from 'lucide-react';
+import { Shield, Home, Users, ScrollText, Info, LogIn, LogOut, UserCircle2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
@@ -28,8 +28,6 @@ const baseNavItems = [
   { href: '/hierarchy', label: 'Hierarquia', icon: Users },
   { href: '/history', label: 'História', icon: ScrollText },
   { href: '/about', label: 'Sobre Nós', icon: Info },
-  { href: '/investigations', label: 'Investigações', icon: FolderSearch },
-  { href: '/suspicious-vehicles', label: 'Veíc. Suspeitos', icon: AlertTriangle },
 ];
 
 const unauthenticatedNavItems = [
@@ -46,60 +44,45 @@ export function Navbar() {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('[Navbar] useEffect: V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD Initializing session check and auth listener.');
     const getSession = async () => {
       setIsLoading(true);
-      console.log('[Navbar] useEffect/getSession: Attempting to get session.');
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) {
-          console.error('[Navbar] Error getting session:', sessionError.message);
-        }
-        const initialUser = session?.user ?? null;
-        console.log('[Navbar] useEffect/getSession: Session fetched. User in session:', initialUser?.email ?? 'No user in session');
-        setUser(initialUser);
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
       } catch (e) {
         console.error('[Navbar] Exception during getSession:', e);
         setUser(null);
       } finally {
         setIsLoading(false);
-        console.log('[Navbar] useEffect/getSession: Loading state set to false.');
       }
     };
     getSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null;
-      console.log(`[Navbar] onAuthStateChange V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD event: ${event}. Current user email: ${currentUser?.email ?? 'No user'}.`);
-      
       setUser(currentUser); 
       setIsLoading(false); 
 
       if (event === 'SIGNED_IN' && (pathname === '/login' || pathname === '/register')) {
-        console.log('[Navbar] SIGNED_IN event detected on login/register page, redirecting to /');
         router.push('/');
       }
       
       if (event === 'SIGNED_OUT') {
-        console.log('[Navbar] SIGNED_OUT event detected by onAuthStateChange. V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD_CLICK. Setting user to null and reloading.');
         setUser(null); 
         window.location.reload();
       }
     });
 
     return () => {
-      console.log('[Navbar] Unsubscribing from auth listener.');
       authListener?.subscription.unsubscribe();
     };
   }, [supabase, router, pathname]);
 
   const handleSignOut = async () => {
-    console.log('[Navbar] handleSignOut: V_RELOAD_FIX_HANDLE_SIGNOUT_FORCE_RELOAD_CLICK Iniciando logout...');
     setIsLoading(true);
     try {
       await signOutUser();
       setUser(null); 
-      console.log('[Navbar] handleSignOut: signOutUser (Server Action) completou e user set to null.');
       window.location.reload(); 
     } catch (error) {
       console.error('[Navbar] handleSignOut: Erro durante o processo de logout:', error);
@@ -112,18 +95,16 @@ export function Navbar() {
     }
   };
 
-
   const avatarUrl = user?.user_metadata?.avatar_url;
   const userEmail = user?.email;
 
-  // Navbar tem fundo escuro, então texto e ícones devem ser sempre claros.
   const navTextColor = "text-slate-100";
   const navIconColor = "text-slate-100/90 group-hover:text-white";
-  const navButtonHover = "hover:bg-white/10"; // Um hover sutil sobre o fundo escuro
+  const navButtonHover = "hover:bg-white/10";
 
   const UserProfileDisplay = () => {
     if (isLoading) {
-      return <div className={`h-10 w-32 bg-slate-500/30 animate-pulse rounded-md`}></div>;
+      return <div className="h-10 w-32 bg-slate-500/30 animate-pulse rounded-md"></div>;
     }
     if (!user) {
       return (
@@ -146,7 +127,7 @@ export function Navbar() {
           <Button variant="ghost" className={`relative h-10 w-10 rounded-full p-0 ${navButtonHover} transition-all duration-300 hover:scale-110`}>
             <Avatar className="h-9 w-9 border-2 border-accent">
               <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
-              <AvatarFallback className="bg-slate-600 text-accent text-lg"> {/* Fallback para Navbar escura */}
+              <AvatarFallback className="bg-slate-600 text-primary-foreground text-lg">
                  <UserCircle2 className="h-6 w-6" />
               </AvatarFallback>
             </Avatar>
@@ -177,8 +158,8 @@ export function Navbar() {
     <header className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-20">
         <Link href="/" className="flex items-center gap-3 group">
-          <Building className={`h-10 w-10 ${navTextColor} transition-transform duration-300 group-hover:scale-110`} />
-          <span className={`text-xl md:text-2xl font-headline font-semibold ${navTextColor}`}>DIVECAR Osasco</span>
+          <Shield className={`h-10 w-10 ${navTextColor} transition-transform duration-300 group-hover:scale-110`} />
+          <span className={`text-xl md:text-2xl font-headline font-semibold ${navTextColor}`}>GCM Osasco</span>
         </Link>
 
         {/* Desktop Navbar */}
@@ -204,7 +185,7 @@ export function Navbar() {
                 <Menu className="h-7 w-7" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="bg-background text-foreground p-6 w-[250px] sm:w-[300px]"> {/* Mobile sheet usa standard card/popover bg */}
+            <SheetContent side="right" className="bg-background text-foreground p-6 w-[250px] sm:w-[300px]">
               <div className="flex flex-col space-y-3 mt-6">
                 {baseNavItems.map((item) => (
                   <Button key={`mobile-base-${item.label}`} variant="ghost" asChild className="text-foreground hover:bg-accent/10 hover:text-primary transition-colors duration-300 justify-start w-full text-left group">
@@ -224,9 +205,9 @@ export function Navbar() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="justify-start w-full text-left flex items-center gap-3 py-2.5 text-lg h-auto px-3 hover:bg-accent/10 hover:text-primary group text-foreground">
-                           <Avatar className="h-8 w-8 border-2 border-accent transition-transform duration-300 group-hover:scale-105">
+                           <Avatar className="h-8 w-8 border-2 border-primary transition-transform duration-300 group-hover:scale-105">
                             <AvatarImage src={avatarUrl} alt={userEmail || 'User avatar'} />
-                            <AvatarFallback className="bg-primary text-accent">
+                            <AvatarFallback className="bg-primary text-primary-foreground">
                                <UserCircle2 className="h-5 w-5" />
                             </AvatarFallback>
                           </Avatar>
@@ -270,4 +251,3 @@ export function Navbar() {
     </header>
   );
 }
-    

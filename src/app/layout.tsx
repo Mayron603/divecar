@@ -7,8 +7,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
 export const metadata: Metadata = {
-  title: 'DIVECAR Osasco - Polícia Civil',
-  description: 'Portal da Divisão de Investigações sobre Furtos e Roubos de Veículos e Cargas de Osasco.',
+  title: 'GCM Osasco - Guarda Civil Municipal',
+  description: 'Portal da Guarda Civil Municipal de Osasco. Protegendo e servindo a comunidade.',
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
       <body className="font-body antialiased flex flex-col min-h-screen">
         <ThemeProvider
           defaultTheme="system"
-          storageKey="divecar-osasco-theme"
+          storageKey="gcm-osasco-theme"
         >
           <Navbar />
           <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">

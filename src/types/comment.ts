@@ -1,14 +1,1 @@
-
-export interface Comment {
-  id: string;
-  investigationId: string;
-  authorName: string;
-  content: string;
-  createdAt: string; // ISO string
-}
-
-export interface CommentInput {
-  investigationId: string;
-  authorName: string;
-  content: string;
-}
+// This file has been intentionally left blank as the feature was removed.

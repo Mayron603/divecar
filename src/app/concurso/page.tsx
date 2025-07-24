@@ -103,7 +103,7 @@ export default function ConcursoPage() {
           <CardDescription>Junte-se à nossa comunidade para obter mais informações e suporte sobre o concurso.</CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center items-center gap-4">
-          <Button asChild size="lg" variant="outline" className="w-full md:w-auto">
+          <Button asChild size="lg" variant="default" className="w-full md:w-auto hover:scale-105 transition-transform duration-300">
             <a href="https://discord.gg/HTQMxZKV77" target="_blank" rel="noopener noreferrer">
               <MessageCircle className="mr-2"/> Entre em nosso Discord
               <ExternalLink className="ml-2 h-4 w-4"/>

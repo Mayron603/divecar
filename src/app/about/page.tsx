@@ -41,12 +41,11 @@ export default function AboutPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
         <div className="overflow-hidden rounded-lg shadow-xl">
           <NextImage
-            src="https://placehold.co/600x400.png"
-            alt="Agentes da GCM de Osasco em formação"
+            src="/GCM2.png"
+            alt="Agentes da GCM de Osasco em serviço"
             width={600} 
             height={400} 
             className="w-full h-auto object-cover transition-transform duration-500 ease-in-out hover:scale-105"
-            data-ai-hint="municipal guard formation"
           />
         </div>
         <div className="space-y-6">

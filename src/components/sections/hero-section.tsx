@@ -8,12 +8,11 @@ export function HeroSection() {
   return (
     <section className="relative py-20 md:py-32 rounded-lg shadow-2xl overflow-hidden mb-16 h-[50vh] md:h-[70vh] flex items-center justify-center">
       <NextImage
-        src="https://placehold.co/1280x720.png"
-        alt="Paisagem urbana de Osasco ao entardecer"
+        src="/GCM.png"
+        alt="Brazão e agentes da Guarda Civil Municipal de Osasco"
         fill
         className="absolute z-0 object-cover"
         priority
-        data-ai-hint="cityscape osasco"
       />
       <div className="absolute inset-0 bg-black/60 z-10"></div> {/* Overlay escurecido para melhor contraste */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-20 text-center">

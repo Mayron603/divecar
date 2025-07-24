@@ -2,7 +2,7 @@
 import { PageHeader } from '@/components/common/page-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Megaphone, User, FileText, School, Star, CheckSquare, Briefcase, Link as LinkIcon, ExternalLink, MessageCircle } from 'lucide-react';
+import { Megaphone, User, FileText, School, Star, CheckSquare, Briefcase, ExternalLink, MessageCircle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 export default function ConcursoPage() {
@@ -99,16 +99,10 @@ export default function ConcursoPage() {
 
       <Card className="text-center bg-primary/5 border-primary/20 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
         <CardHeader>
-          <CardTitle className="text-2xl text-primary">Inscreva-se e Participe!</CardTitle>
-          <CardDescription>Não perca a chance de servir com honra e coragem pela cidade de Osasco.</CardDescription>
+          <CardTitle className="text-2xl text-primary">Participe e Tire Suas Dúvidas!</CardTitle>
+          <CardDescription>Junte-se à nossa comunidade para obter mais informações e suporte sobre o concurso.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col md:flex-row justify-center items-center gap-4">
-          <Button asChild size="lg" className="w-full md:w-auto">
-            <a href="https://docs.google.com/forms/d/e/1FAIpQLSe0CSW1EPkB-k3zoztqe_pbKQ2LHQCi8StwDucikG2f_b5Beg/viewform?usp=header" target="_blank" rel="noopener noreferrer">
-              <LinkIcon className="mr-2"/> Formulário de Inscrição Oficial
-              <ExternalLink className="ml-2 h-4 w-4"/>
-            </a>
-          </Button>
+        <CardContent className="flex justify-center items-center gap-4">
           <Button asChild size="lg" variant="outline" className="w-full md:w-auto">
             <a href="https://discord.gg/HTQMxZKV77" target="_blank" rel="noopener noreferrer">
               <MessageCircle className="mr-2"/> Entre em nosso Discord

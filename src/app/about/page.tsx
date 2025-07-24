@@ -46,7 +46,7 @@ export default function AboutPage() {
             width={600} 
             height={400} 
             className="w-full h-auto object-cover transition-transform duration-500 ease-in-out hover:scale-105"
-            data-ai-hint="municipal guard"
+            data-ai-hint="municipal guard formation"
           />
         </div>
         <div className="space-y-6">

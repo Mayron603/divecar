@@ -7,7 +7,10 @@ import {
   Shield,
   Star,
   Award,
-  UserCheck
+  UserCheck,
+  ChevronUp,
+  ChevronDown,
+  UserPlus
 } from 'lucide-react';
 
 interface Rank {
@@ -18,28 +21,53 @@ interface Rank {
 
 const hierarchyData: Rank[] = [
   {
-    name: "Comandante da Guarda",
-    description: "Responsável pelo comando geral, planejamento estratégico e gestão administrativa de toda a Guarda Civil Municipal.",
+    name: "Inspetor Superintendente",
+    description: "Comando geral da GCM, responsável pela gestão estratégica e representação da instituição.",
     icon: Star,
   },
   {
-    name: "Subcomandante da Guarda",
-    description: "Auxilia diretamente o Comandante, substituindo-o em suas ausências e coordenando as operações e o pessoal.",
+    name: "Inspetor de Agrupamento",
+    description: "Coordena um agrupamento de divisões, supervisionando operações de grande escala.",
     icon: Shield,
   },
   {
-    name: "Inspetor",
-    description: "Coordena grandes áreas operacionais ou divisões administrativas, supervisionando as equipes e garantindo a execução das diretrizes do comando.",
+    name: "Inspetor de Divisão",
+    description: "Responsável por uma divisão específica, como a ambiental ou de trânsito.",
     icon: Award,
   },
   {
-    name: "Subinspetor",
-    description: "Lidera equipes em campo, supervisiona o patrulhamento em setores específicos e atua como elo entre os guardas e o comando superior.",
+    name: "Inspetor",
+    description: "Lidera equipes maiores em campo, garantindo a execução das diretrizes operacionais.",
     icon: UserCheck,
   },
   {
-    name: "Guarda Civil Municipal",
-    description: "Executa o patrulhamento preventivo, atende ocorrências, orienta o público e zela pela segurança dos cidadãos e do patrimônio municipal.",
+    name: "Subinspetor",
+    description: "Supervisiona equipes e setores específicos, atuando como elo com o comando.",
+    icon: Users,
+  },
+  {
+    name: "Classe Distinta",
+    description: "GCM com vasta experiência, atua em funções especializadas e de mentoria.",
+    icon: ChevronUp,
+  },
+  {
+    name: "Classe Especial",
+    description: "GCM experiente, com responsabilidades de liderança em pequenas equipes.",
+    icon: ChevronDown,
+  },
+  {
+    name: "Agente de 1ª Classe",
+    description: "Agente com progressão na carreira, atua com maior autonomia.",
+    icon: UserPlus,
+  },
+  {
+    name: "Agente de 2ª Classe",
+    description: "Agente com experiência consolidada nas funções de patrulhamento.",
+    icon: Users,
+  },
+  {
+    name: "Agente de 3ª Classe",
+    description: "Posto de ingresso na corporação, executa o patrulhamento preventivo e comunitário.",
     icon: Users,
   },
 ];
